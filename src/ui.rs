@@ -789,7 +789,11 @@ fn spawn_detective_select_card(
             .with_children(|st| {
                 st.spawn((
                     Text::new(format!(
-                        "DED {ded}   •   SAN {san}   •   NOC {noc}   •   PUL {pul}   |   Sense: {}",
+                        "{} {ded}   •   {} {san}   •   {} {noc}   •   {} {pul}   |   Sense: {}",
+                        Faculty::Deduction.code_for(det),
+                        Faculty::Sanguine.code_for(det),
+                        Faculty::Nocturne.code_for(det),
+                        Faculty::Pulse.code_for(det),
                         det.sense_name()
                     )),
                     TextFont {
@@ -1282,12 +1286,16 @@ fn update_minimal_hud(
             active_scene.current_title.as_str()
         };
         txt.0 = format!(
-            "{}  |  {}  |  DED {}  SAN {}  NOC {}  PUL {}  |  {} {}{}",
+            "{}  |  {}  |  {} {}  {} {}  {} {}  {} {}  |  {} {}{}",
             sheet.character.display_name(),
             loc_title,
+            Faculty::Deduction.code_for(sheet.character),
             sheet.effective_stat(Faculty::Deduction),
+            Faculty::Sanguine.code_for(sheet.character),
             sheet.effective_stat(Faculty::Sanguine),
+            Faculty::Nocturne.code_for(sheet.character),
             sheet.effective_stat(Faculty::Nocturne),
+            Faculty::Pulse.code_for(sheet.character),
             sheet.effective_stat(Faculty::Pulse),
             sheet.character.strain_label(),
             bar,
@@ -1339,19 +1347,40 @@ fn update_pulse_monitor_widget(
             Color::srgb(0.48, 0.86, 0.72)
         };
 
-        let (prefix, spike_word) = match sheet.character {
-            DetectiveId::Richey => ("♥ Blood Pulse", "LIE / PANIC SPIKE"),
-            DetectiveId::LuckerAndRon => ("◈ Spirit Aura", "GUILT TREMOR"),
-            DetectiveId::Pinckney => ("◆ Scent Spoor", "FEAR-SWEAT SPIKE"),
-            DetectiveId::Zombie => ("❖ Mortis Read", "NERVE PANIC"),
+        let intensity_pct = ((hb.current_bpm - 50.0) * 1.05).clamp(12.0, 99.0);
+        let readout = match sheet.character {
+            DetectiveId::Richey => {
+                let state_word = if spike { "LIE / PANIC SPIKE" } else { "STEADY" };
+                format!(
+                    "♥ Blood Pulse: {} — {:.0} BPM (base {:.0}) [{state_word}]",
+                    hb.display_name, hb.current_bpm, hb.resting_bpm
+                )
+            }
+            DetectiveId::LuckerAndRon => {
+                let state_word = if spike { "GUILT TREMOR" } else { "CALM AURA" };
+                format!(
+                    "◈ Spirit Aura: {} — {:.0}% Resonance [{state_word}]",
+                    hb.display_name, intensity_pct
+                )
+            }
+            DetectiveId::Pinckney => {
+                let state_word = if spike { "FEAR-SWEAT SPIKE" } else { "CALM SCENT" };
+                format!(
+                    "◆ Lupine Scent: {} — {:.0}% Adrenaline [{state_word}]",
+                    hb.display_name, intensity_pct
+                )
+            }
+            DetectiveId::Zombie => {
+                let state_word = if spike { "NERVE PANIC" } else { "STILL NERVES" };
+                format!(
+                    "❖ Mortis Read: {} — {:.0}% Nerve Tremor [{state_word}]",
+                    hb.display_name, intensity_pct
+                )
+            }
         };
-        let state_word = if spike { spike_word } else { "STEADY" };
 
         if let Ok((mut t, mut c)) = text_q.get_single_mut() {
-            t.0 = format!(
-                "{prefix}: {} — {:.0} BPM (base {:.0}) [{state_word}]",
-                hb.display_name, hb.current_bpm, hb.resting_bpm
-            );
+            t.0 = readout;
             c.0 = accent;
         }
         if let Ok((mut bar_node, mut bg)) = bar_q.get_single_mut() {
@@ -1561,11 +1590,12 @@ fn sync_current_exchange_and_choices(
         commands.entity(choices_entity).with_children(|tray| {
             for (idx, resolved) in nar_state.current_choices.iter().enumerate() {
                 let prefix = if let Some(sc) = &resolved.raw.skill_check {
+                    let fac_name = sc.faculty.name_for(sheet.character);
                     if resolved.locked_check_failed {
-                        format!("{}. [{} — Failed] ", idx + 1, sc.faculty.name())
+                        format!("{}. [{fac_name} — Failed] ", idx + 1)
                     } else {
                         let pct = sheet.success_chance_percent(sc.faculty, sc.dc);
-                        format!("{}. [{} {}%] ", idx + 1, sc.faculty.name(), pct)
+                        format!("{}. [{fac_name} {pct}%] ", idx + 1)
                     }
                 } else {
                     format!("{}. ", idx + 1)
@@ -1576,7 +1606,7 @@ fn sync_current_exchange_and_choices(
                 } else if let Some(req_char) = resolved.raw.requires_character {
                     req_char.accent_color()
                 } else if let Some(sc) = &resolved.raw.skill_check {
-                    sc.faculty.color()
+                    sc.faculty.color_for(sheet.character)
                 } else {
                     Color::srgb(0.92, 0.86, 0.74)
                 };
@@ -1635,14 +1665,17 @@ fn handle_choice_button_clicks(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn sync_ledger_modal(
     mut commands: Commands,
     ledger_open: Res<LedgerModalOpen>,
+    sheet: Res<DetectiveSheet>,
     ledger: Res<ClueLedger>,
     library: Res<CaseLibrary>,
     mut modal_root_q: Query<&mut Node, With<LedgerModalRoot>>,
     content_q: Query<(Entity, Option<&Children>), With<LedgerModalContent>>,
     mut last_count: Local<usize>,
+    mut last_char: Local<Option<DetectiveId>>,
     mut initialized: Local<bool>,
 ) {
     if let Ok(mut root_node) = modal_root_q.get_single_mut() {
@@ -1653,11 +1686,15 @@ fn sync_ledger_modal(
         };
     }
 
-    if *initialized && *last_count == ledger.discovered.len() {
+    if *initialized
+        && *last_count == ledger.discovered.len()
+        && *last_char == Some(sheet.character)
+    {
         return;
     }
     *initialized = true;
     *last_count = ledger.discovered.len();
+    *last_char = Some(sheet.character);
 
     let Ok((content_entity, children)) = content_q.get_single() else {
         return;
@@ -1679,12 +1716,16 @@ fn sync_ledger_modal(
         .with_children(|fac_box| {
             for fac in Faculty::ALL {
                 fac_box.spawn((
-                    Text::new(format!("• {}: {}", fac.name(), fac.short_desc())),
+                    Text::new(format!(
+                        "• {}: {}",
+                        fac.name_for(sheet.character),
+                        fac.desc_for(sheet.character)
+                    )),
                     TextFont {
                         font_size: 11.5,
                         ..default()
                     },
-                    TextColor(fac.color()),
+                    TextColor(fac.color_for(sheet.character)),
                 ));
             }
         });

@@ -87,6 +87,7 @@ CaseData(
                 PassiveVoice(
                     faculty: Some(Sanguine),
                     min_stat: 2,
+                    requires_character: Some(Richey),
                     requires_blood_sight: false,
                     text: "Fresh gin and scrubbed blood in the air. Press [Tab] to awaken {sense}.",
                 ),
@@ -160,18 +161,6 @@ CaseData(
                     next_node: "corpse_zombie_psychometry",
                     requires_character: Some(Zombie),
                     hide_if_clue: Some("clue_perfume_and_brass"),
-                ),
-                DialogueChoice(
-                    label: "Check the scent on his collar.",
-                    hide_if_clue: Some("clue_perfume_and_brass"),
-                    skill_check: Some(SkillCheckSpec(
-                        id: "chk_corpse_scent",
-                        faculty: Sanguine,
-                        dc: 9,
-                        success_node: "corpse_scent_ok",
-                        failure_node: "corpse_scent_fail",
-                        hunger_cost: 0.35,
-                    )),
                 ),
                 DialogueChoice(
                     label: "Step back.",
@@ -260,40 +249,6 @@ CaseData(
             choices: [
                 DialogueChoice(
                     label: "Wipe your cold fingers and step back.",
-                    next_node: "LEAVE_CONVERSATION",
-                ),
-            ],
-        ),
-
-        DialogueNode(
-            id: "corpse_scent_ok",
-            speaker: "JULIAN VANCE (CORPSE)",
-            active_suspect_id: None,
-            text: "Two scents linger under the gunsmoke: Clara's jasmine perfume and precinct-issue gun oil.",
-            grants_clues: ["clue_perfume_and_brass"],
-            pulse_trigger: None,
-            hunger_delta: 0.0,
-            passive_voices: [],
-            choices: [
-                DialogueChoice(
-                    label: "Step back.",
-                    next_node: "LEAVE_CONVERSATION",
-                ),
-            ],
-        ),
-
-        DialogueNode(
-            id: "corpse_scent_fail",
-            speaker: "JULIAN VANCE (CORPSE)",
-            active_suspect_id: None,
-            text: "Spilled gin and stale cigar smoke drown out everything else.",
-            grants_clues: [],
-            pulse_trigger: None,
-            hunger_delta: 0.25,
-            passive_voices: [],
-            choices: [
-                DialogueChoice(
-                    label: "Step back.",
                     next_node: "LEAVE_CONVERSATION",
                 ),
             ],
@@ -484,24 +439,26 @@ CaseData(
                     min_stat: 0,
                     requires_character: Some(Zombie),
                     requires_blood_sight: false,
-                    text: "138 BPM against your silent dead ribs—she's terrified of the sergeant.",
+                    text: "Cold mortis stillness lets you feel every tremor in her hands—she's terrified of the sergeant.",
                 ),
                 PassiveVoice(
                     faculty: Some(Pulse),
                     min_stat: 2,
+                    requires_character: Some(Richey),
                     requires_blood_sight: false,
                     text: "Her pulse just jumped to 138 BPM. She's lying.",
                 ),
                 PassiveVoice(
                     faculty: None,
                     min_stat: 3,
+                    requires_character: Some(Richey),
                     requires_blood_sight: false,
                     text: "138 BPM — her vein hammers warm under her pearls.",
                 ),
             ],
             choices: [
                 DialogueChoice(
-                    label: "\"Your pulse is racing, Clara. Who was really back here?\"",
+                    label: "\"You're terrified, Clara—I can sense it. Who was really back here?\"",
                     skill_check: Some(SkillCheckSpec(
                         id: "chk_clara_pulse_press",
                         faculty: Pulse,
@@ -635,10 +592,32 @@ CaseData(
             hunger_delta: 0.0,
             passive_voices: [
                 PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(LuckerAndRon),
+                    requires_blood_sight: false,
+                    text: "Det. Lucker (Ghost): \"His aura's flaring red-hot, Ron—watch his left hand!\"",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Pinckney),
+                    requires_blood_sight: false,
+                    text: "Sour adrenaline and gun-oil sweat—he's about to draw or break.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Zombie),
+                    requires_blood_sight: false,
+                    text: "Tendons taut in his left forearm—he's half a second from drawing.",
+                ),
+                PassiveVoice(
                     faculty: Some(Pulse),
                     min_stat: 1,
+                    requires_character: Some(Richey),
                     requires_blood_sight: false,
-                    text: "148 BPM — he's about to draw or break.",
+                    text: "148 BPM — his carotid hammers; he's about to draw or break.",
                 ),
             ],
             choices: [

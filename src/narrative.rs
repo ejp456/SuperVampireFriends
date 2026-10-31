@@ -292,7 +292,7 @@ fn process_select_choice_events(
             let roll = sheet.roll_check(check.faculty, check.dc);
             let badge = format!(
                 "{} {} vs DC {} ({})",
-                check.faculty.name(),
+                check.faculty.name_for(sheet.character),
                 roll.total,
                 roll.dc,
                 if roll.succeeded { "Passed" } else { "Failed" }
@@ -346,7 +346,10 @@ pub fn pick_passive_whisper(
         }
         match pv.faculty {
             Some(fac) if sheet.effective_stat(fac) >= pv.min_stat => {
-                return Some((format!("[{}] {}", fac.name(), formatted), fac.color()));
+                return Some((
+                    format!("[{}] {}", fac.name_for(sheet.character), formatted),
+                    fac.color_for(sheet.character),
+                ));
             }
             None if (sheet.hunger_pips() as i32) >= pv.min_stat => {
                 return Some((
@@ -569,9 +572,17 @@ mod tests {
             .any(|c| c.formatted_label.contains("[Ghost Lucker — Séance]")));
 
         let pinckney_opts = resolve_node_choices(corpse, &ledger, false, DetectiveId::Pinckney);
+        assert_eq!(
+            pinckney_opts.len(),
+            2,
+            "Pinckney should only see his Werewolf Scent ability and Step back (no duplicate Sanguine collar check)"
+        );
         assert!(pinckney_opts
             .iter()
             .any(|c| c.formatted_label.contains("[Werewolf Scent]")));
+        assert!(!pinckney_opts
+            .iter()
+            .any(|c| c.formatted_label.contains("Check the scent on his collar")));
 
         let zombie_opts = resolve_node_choices(corpse, &ledger, false, DetectiveId::Zombie);
         assert!(zombie_opts

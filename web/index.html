@@ -77,12 +77,12 @@
   </div>
 
   <script type="module">
-    import init from './pkg/vampire_noir_rpg.js';
+    import init from './pkg/vampire_noir_rpg.js?v=3';
 
     const overlay = document.getElementById('loading-overlay');
     const statusEl = document.getElementById('loading-status');
 
-    init()
+    init('./pkg/vampire_noir_rpg_bg.wasm?v=3')
       .catch((err) => {
         // Bevy winit control-flow exception on startup is normal in wasm-bindgen
         if (!String(err).includes("Using exceptions for control flow")) {

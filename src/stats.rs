@@ -17,30 +17,72 @@ impl Faculty {
         Faculty::Pulse,
     ];
 
-    pub fn name(&self) -> &'static str {
+    pub fn name_for(&self, character: DetectiveId) -> &'static str {
         match self {
             Faculty::Deduction => "DEDUCTION",
-            Faculty::Sanguine => "SANGUINE",
             Faculty::Nocturne => "NOCTURNE",
-            Faculty::Pulse => "PULSE",
+            Faculty::Sanguine => match character {
+                DetectiveId::Richey => "SANGUINE",
+                DetectiveId::LuckerAndRon => "ECTOPLASM",
+                DetectiveId::Pinckney => "LUPINE SCENT",
+                DetectiveId::Zombie => "MORTIS",
+            },
+            Faculty::Pulse => match character {
+                DetectiveId::Richey => "PULSE",
+                DetectiveId::LuckerAndRon => "SPIRIT AURA",
+                DetectiveId::Pinckney => "FERAL",
+                DetectiveId::Zombie => "DEAD NERVE",
+            },
         }
     }
 
-    pub fn short_desc(&self) -> &'static str {
+    pub fn code_for(&self, character: DetectiveId) -> &'static str {
+        match self {
+            Faculty::Deduction => "DED",
+            Faculty::Nocturne => "NOC",
+            Faculty::Sanguine => match character {
+                DetectiveId::Richey => "SAN",
+                DetectiveId::LuckerAndRon => "ECT",
+                DetectiveId::Pinckney => "SCT",
+                DetectiveId::Zombie => "MOR",
+            },
+            Faculty::Pulse => match character {
+                DetectiveId::Richey => "PUL",
+                DetectiveId::LuckerAndRon => "AUR",
+                DetectiveId::Pinckney => "FER",
+                DetectiveId::Zombie => "NRV",
+            },
+        }
+    }
+
+    pub fn desc_for(&self, character: DetectiveId) -> &'static str {
         match self {
             Faculty::Deduction => "Ballistics, timelines, cold forensic geometry",
-            Faculty::Sanguine => "Blood spoor, scent chemistry, post-mortem residue",
             Faculty::Nocturne => "1940s streetwise cynicism, underworld & veil lore",
-            Faculty::Pulse => "Heartbeat lies, fear-sweat, aura pressure, dread",
+            Faculty::Sanguine => match character {
+                DetectiveId::Richey => "Blood chemistry, arterial iron, crimson echoes",
+                DetectiveId::LuckerAndRon => "Ghost mediumship, death echoes, séance channeling",
+                DetectiveId::Pinckney => "Wolf bloodhound tracking, cordite, perfume & spoor",
+                DetectiveId::Zombie => "Undead psychometry, lividity, autopsy tissue recall",
+            },
+            Faculty::Pulse => match character {
+                DetectiveId::Richey => "Predator acoustics, heartbeat lies, vampire dread",
+                DetectiveId::LuckerAndRon => "Guilt aura resonance, possession voice, spirit pressure",
+                DetectiveId::Pinckney => "Fear-sweat adrenaline, alpha pack presence, lupine snarl",
+                DetectiveId::Zombie => "Pulse-free stillness, bullet-proof grit, morgue dread",
+            },
         }
     }
 
-    pub fn color(&self) -> Color {
+    pub fn color_for(&self, character: DetectiveId) -> Color {
         match self {
             Faculty::Deduction => Color::srgb(0.47, 0.72, 0.92),
-            Faculty::Sanguine => Color::srgb(0.88, 0.24, 0.30),
             Faculty::Nocturne => Color::srgb(0.86, 0.68, 0.34),
-            Faculty::Pulse => Color::srgb(0.76, 0.44, 0.88),
+            Faculty::Sanguine => character.accent_color(),
+            Faculty::Pulse => match character {
+                DetectiveId::Pinckney => Color::srgb(0.96, 0.54, 0.24),
+                _ => Color::srgb(0.76, 0.44, 0.88),
+            },
         }
     }
 }
@@ -184,23 +226,23 @@ impl DetectiveId {
     pub fn abilities_summary(&self) -> &'static str {
         match self {
             DetectiveId::Richey => {
-                "• [Tab] Vampire Senses: Blood trails & live BPM lie rings\n• Crimson Gaze & Blood Chemistry checks (High Thirst: +SAN/+PUL, -DED)"
+                "• [Tab] Vampire Senses: Blood trails & live BPM lie rings\n• Crimson Gaze & Blood Chemistry (High Thirst: +SAN/+PUL, -DED)"
             }
             DetectiveId::LuckerAndRon => {
-                "• [Tab] Phantom Sight: Death echoes & spirit guilt auras\n• Corpse Séance & Ghost Possession voice (High Sync: +DED/+NOC, -PUL)"
+                "• [Tab] Phantom Sight: Death echoes & spirit guilt auras\n• Corpse Séance & Ghost Possession (High Sync: +DED/+NOC, -AUR)"
             }
             DetectiveId::Pinckney => {
-                "• [Tab] Lupine Scent: Scent plumes & fear-adrenaline spikes\n• Fast prowler stride & Alpha Snarl (High Fury: +2 PUL/+1 SAN, -DED/-NOC)"
+                "• [Tab] Lupine Scent: Scent plumes & fear-adrenaline spikes\n• Fast prowler stride & Werewolf Snarl (High Fury: +2 FER/+1 SCT, -DED/-NOC)"
             }
             DetectiveId::Zombie => {
-                "• [Tab] Mortis Sight: Tissue psychometry & autopsy lividity\n• Painless bullet-proof nerve & Corpse Recall (High Decay: +DED/+SAN, -NOC)"
+                "• [Tab] Mortis Sight: Tissue psychometry & autopsy lividity\n• Bullet-proof nerve & Corpse Recall (High Decay: +DED/+MOR, -NOC)"
             }
         }
     }
 
     pub fn base_stats(&self) -> (i32, i32, i32, i32) {
         match self {
-            // (Deduction, Sanguine, Nocturne, Pulse)
+            // (Deduction, Supernatural Sense [SAN/ECT/SCT/MOR], Nocturne, Presence [PUL/AUR/FER/NRV])
             DetectiveId::Richey => (3, 4, 2, 3),
             DetectiveId::LuckerAndRon => (4, 2, 4, 2),
             DetectiveId::Pinckney => (2, 3, 2, 5),
@@ -367,29 +409,38 @@ mod tests {
     }
 
     #[test]
+    fn non_vampires_do_not_expose_vampire_sanguine_stat_labels() {
+        assert_eq!(Faculty::Sanguine.name_for(DetectiveId::Richey), "SANGUINE");
+        assert_eq!(Faculty::Sanguine.code_for(DetectiveId::Richey), "SAN");
+
+        assert_eq!(Faculty::Sanguine.name_for(DetectiveId::Pinckney), "LUPINE SCENT");
+        assert_eq!(Faculty::Sanguine.code_for(DetectiveId::Pinckney), "SCT");
+        assert_eq!(Faculty::Pulse.name_for(DetectiveId::Pinckney), "FERAL");
+
+        assert_eq!(Faculty::Sanguine.name_for(DetectiveId::LuckerAndRon), "ECTOPLASM");
+        assert_eq!(Faculty::Sanguine.name_for(DetectiveId::Zombie), "MORTIS");
+    }
+
+    #[test]
     fn each_detective_has_unique_supernatural_overdrive_modifiers() {
-        // 1. Richey (Vampire — Thirst)
         let mut richey = DetectiveSheet::from_character(DetectiveId::Richey);
         richey.hunger = 3.5;
         assert_eq!(richey.effective_stat(Faculty::Sanguine), 5);
         assert_eq!(richey.effective_stat(Faculty::Pulse), 4);
         assert_eq!(richey.effective_stat(Faculty::Deduction), 2);
 
-        // 2. Lucker & Ron (Ghost + Possessed Human — Sync)
         let mut lucker = DetectiveSheet::from_character(DetectiveId::LuckerAndRon);
         lucker.hunger = 3.5;
         assert_eq!(lucker.effective_stat(Faculty::Deduction), 5);
         assert_eq!(lucker.effective_stat(Faculty::Nocturne), 5);
         assert_eq!(lucker.effective_stat(Faculty::Pulse), 1);
 
-        // 3. Pinckney (Werewolf — Fury)
         let mut pinckney = DetectiveSheet::from_character(DetectiveId::Pinckney);
         pinckney.hunger = 3.5;
         assert_eq!(pinckney.effective_stat(Faculty::Pulse), 7);
         assert_eq!(pinckney.effective_stat(Faculty::Sanguine), 4);
         assert_eq!(pinckney.effective_stat(Faculty::Deduction), 1);
 
-        // 4. Graves (Zombie — Decay)
         let mut zombie = DetectiveSheet::from_character(DetectiveId::Zombie);
         zombie.hunger = 3.5;
         assert_eq!(zombie.effective_stat(Faculty::Deduction), 5);

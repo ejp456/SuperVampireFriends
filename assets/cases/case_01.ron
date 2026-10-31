@@ -43,6 +43,11 @@ CaseData(
             title: "Clara's Confession",
             summary: "Clara saw Sgt. Miller (Badge 419) shoot Vance behind the curtain.",
         ),
+        ClueDef(
+            id: "clue_prowl_car_log",
+            title: "Cruiser #419 Patrol Log",
+            summary: "Miller's dash clipboard logs Car 419 parked on Harbor St. 40 minutes before the 911 call.",
+        ),
     ],
     nodes: [
         DialogueNode(
@@ -293,6 +298,31 @@ CaseData(
             ],
         ),
 
+        // ---------------- HOTSPOT: PRECINCT PROWL CAR (STREET) ----------------
+        DialogueNode(
+            id: "inspect_prowl_car",
+            speaker: "PRECINCT CRUISER #419",
+            active_suspect_id: None,
+            text: "Through the rain-streaked window, Miller's dash clipboard logs Car 419 arriving on Harbor Street forty minutes before dispatch called in the shot.",
+            grants_clues: ["clue_prowl_car_log"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Nocturne),
+                    min_stat: 2,
+                    requires_blood_sight: false,
+                    text: "The hood is stone cold. He was already inside when Vance died.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Step back from the cruiser.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
         // ---------------- NPC: CLARA MOREAU ----------------
         DialogueNode(
             id: "talk_clara",
@@ -429,6 +459,11 @@ CaseData(
                     label: "\"Left-handed .38 behind the curtain. Open your cylinder, Sergeant.\"",
                     next_node: "miller_confrontation",
                     requires_clue: Some("clue_left_handed_revolver"),
+                ),
+                DialogueChoice(
+                    label: "\"Cruiser 419 was parked out front forty minutes before the 911 call, Frank.\"",
+                    next_node: "miller_confrontation",
+                    requires_clue: Some("clue_prowl_car_log"),
                 ),
                 DialogueChoice(
                     label: "\"Still looking around, Sergeant.\"",

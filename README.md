@@ -1,6 +1,6 @@
 # Crimson Ledger — Co-op Vampire Noir Detective RPG (Bevy 0.15)
 
-A *Disco Elysium*-inspired narrative detective RPG built in pure Rust with **Bevy 0.15**, featuring point-and-click exploration, 1-on-1 portrait dialogue, `2d6` skill checks, supernatural **Blood Sight**, live **Suspect Heartbeat** lie detection, and **Invite-Code Co-op Multiplayer**.
+A *Disco Elysium*-inspired narrative detective RPG built in pure Rust with **Bevy 0.15**, featuring modular data-driven **Scene Classes** (`assets/scenes/case_01_scenes.ron`) linking rooms, alleys, and streets via interactive doorways, point-and-click A* exploration, 1-on-1 portrait dialogue, `2d6` skill checks, supernatural **Blood Sight**, live **Suspect Heartbeat** lie detection, and **Invite-Code Co-op Multiplayer** (Desktop TCP + Browser WebAssembly/WebSocket).
 
 ## Quick Start
 

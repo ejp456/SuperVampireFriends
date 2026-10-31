@@ -1,0 +1,490 @@
+SceneCatalog(
+    initial_scene: "velvet_backroom",
+    initial_spawn: (-40.0, -35.0),
+    scenes: [
+        // =====================================================================
+        // SCENE 1: THE VELVET LOUNGE — BACKROOM (INTERIOR ROOM)
+        // =====================================================================
+        SceneClass(
+            id: "velvet_backroom",
+            title: "Velvet Lounge — Backroom",
+            environment: Room,
+            walk_bounds: (292.0, 218.0),
+            camera_pan_bounds: (95.0, 75.0),
+            rain_drops: 0,
+            surfaces: [
+                // Dark mahogany floorboards
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (610.0, 464.0),
+                    z: 0.0,
+                    normal_rgba: (0.14, 0.09, 0.08, 1.0),
+                    blood_sight_rgba: (0.06, 0.06, 0.09, 1.0),
+                    neon_flicker: None,
+                ),
+                // Warm amber chandelier light pool
+                SceneSurface(
+                    pos: (8.0, 25.0),
+                    size: (430.0, 290.0),
+                    z: 0.4,
+                    normal_rgba: (0.85, 0.55, 0.24, 0.09),
+                    blood_sight_rgba: (0.45, 0.05, 0.12, 0.07),
+                    neon_flicker: None,
+                ),
+                // Center crimson velvet rug
+                SceneSurface(
+                    pos: (0.0, 35.0),
+                    size: (178.0, 120.0),
+                    z: 0.8,
+                    normal_rgba: (0.28, 0.11, 0.13, 1.0),
+                    blood_sight_rgba: (0.11, 0.09, 0.13, 1.0),
+                    neon_flicker: None,
+                ),
+                // Small dark stain beneath Julian Vance's vest
+                SceneSurface(
+                    pos: (-4.0, 32.0),
+                    size: (34.0, 22.0),
+                    z: 1.5,
+                    normal_rgba: (0.38, 0.04, 0.06, 0.85),
+                    blood_sight_rgba: (0.55, 0.05, 0.10, 0.90),
+                    neon_flicker: None,
+                ),
+            ],
+            walls: [
+                // North wall
+                SceneWall(pos: (0.0, 232.0), size: (630.0, 20.0), color_rgb: (0.22, 0.18, 0.20), solid: true),
+                // East wall
+                SceneWall(pos: (305.0, 0.0), size: (20.0, 484.0), color_rgb: (0.22, 0.18, 0.20), solid: true),
+                // South wall (split around Service Exit doorway at x = 0)
+                SceneWall(pos: (-180.0, -232.0), size: (268.0, 20.0), color_rgb: (0.22, 0.18, 0.20), solid: true),
+                SceneWall(pos: (180.0, -232.0), size: (268.0, 20.0), color_rgb: (0.22, 0.18, 0.20), solid: true),
+                // West wall (split around Club Foyer doorway at y = -20)
+                SceneWall(pos: (-305.0, 135.0), size: (20.0, 214.0), color_rgb: (0.22, 0.18, 0.20), solid: true),
+                SceneWall(pos: (-305.0, -155.0), size: (20.0, 174.0), color_rgb: (0.22, 0.18, 0.20), solid: true),
+            ],
+            props: [
+                // North crimson velvet stage curtain
+                SceneProp(
+                    label: None,
+                    pos: (0.0, 210.0),
+                    size: (230.0, 22.0),
+                    z: 3.4,
+                    color_rgba: (0.46, 0.08, 0.14, 1.0),
+                    solid: false,
+                ),
+                // Mahogany lounge bar counter
+                SceneProp(
+                    label: None,
+                    pos: (242.0, 80.0),
+                    size: (42.0, 185.0),
+                    z: 2.5,
+                    color_rgba: (0.27, 0.16, 0.11, 1.0),
+                    solid: true,
+                ),
+                // Scattered ledger page beside poker table
+                SceneProp(
+                    label: None,
+                    pos: (-135.0, 52.0),
+                    size: (13.0, 17.0),
+                    z: 2.6,
+                    color_rgba: (0.90, 0.84, 0.68, 1.0),
+                    solid: false,
+                ),
+            ],
+            characters: [
+                // Victim corpse
+                SceneCharacter(
+                    id: "vance_corpse",
+                    display_name: "Julian Vance's Corpse",
+                    nameplate: None,
+                    sprite_path: "sprites/vance_corpse.png",
+                    fallback_rgb: (0.76, 0.73, 0.68),
+                    pos: (0.0, 35.0),
+                    sprite_size: (82.0, 82.0),
+                    collider_half: None,
+                    resting_bpm: None,
+                    dialogue_node: "inspect_corpse",
+                    interact_radius: 74.0,
+                    nameplate_rgb: (0.85, 0.82, 0.76),
+                ),
+                // Suspect: Clara Moreau
+                SceneCharacter(
+                    id: "clara",
+                    display_name: "Clara Moreau",
+                    nameplate: Some("Clara"),
+                    sprite_path: "sprites/clara.png",
+                    fallback_rgb: (0.18, 0.52, 0.44),
+                    pos: (182.0, 92.0),
+                    sprite_size: (68.0, 68.0),
+                    collider_half: Some((15.0, 15.0)),
+                    resting_bpm: Some(76.0),
+                    dialogue_node: "talk_clara",
+                    interact_radius: 78.0,
+                    nameplate_rgb: (0.92, 0.88, 0.78),
+                ),
+                // Suspect: Sgt. Frank Miller
+                SceneCharacter(
+                    id: "miller",
+                    display_name: "Sgt. Frank Miller",
+                    nameplate: Some("Sgt. Miller"),
+                    sprite_path: "sprites/miller.png",
+                    fallback_rgb: (0.24, 0.34, 0.52),
+                    pos: (96.0, -135.0),
+                    sprite_size: (70.0, 70.0),
+                    collider_half: Some((16.0, 16.0)),
+                    resting_bpm: Some(72.0),
+                    dialogue_node: "talk_miller",
+                    interact_radius: 80.0,
+                    nameplate_rgb: (0.78, 0.84, 0.94),
+                ),
+            ],
+            clues: [
+                // Overturned Poker Table & Coded Ledger
+                SceneClue(
+                    id: "poker_table",
+                    label: "Overturned Table & Ledger",
+                    node_id: "inspect_table",
+                    pos: (-182.0, 68.0),
+                    size: (78.0, 54.0),
+                    z: 2.5,
+                    color_rgba: (0.32, 0.20, 0.13, 1.0),
+                    collider_half: Some((39.0, 27.0)),
+                    interact_radius: 82.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+                // Gin-scrubbed Blood Pool behind the North Curtain (Blood Sight gated!)
+                SceneClue(
+                    id: "curtain_blood_pool",
+                    label: "Blood Pool [Curtain]",
+                    node_id: "inspect_curtain_echo",
+                    pos: (0.0, 190.0),
+                    size: (58.0, 25.0),
+                    z: 2.2,
+                    color_rgba: (1.0, 0.06, 0.18, 0.75),
+                    collider_half: None,
+                    interact_radius: 78.0,
+                    requires_blood_sight_unless_clue: Some("clue_curtain_kill_site"),
+                    blood_echo_alpha: Some(0.65),
+                ),
+            ],
+            blood_echoes: [
+                SceneBloodEcho(pos: (-3.0, 174.0), size: (34.0, 18.0), alpha: 0.70, phase_offset: 0.0),
+                SceneBloodEcho(pos: (4.0, 150.0), size: (14.0, 20.0), alpha: 0.55, phase_offset: 0.45),
+                SceneBloodEcho(pos: (-2.0, 126.0), size: (12.0, 20.0), alpha: 0.50, phase_offset: 0.90),
+                SceneBloodEcho(pos: (3.0, 102.0), size: (13.0, 19.0), alpha: 0.48, phase_offset: 1.35),
+                SceneBloodEcho(pos: (-1.0, 78.0), size: (12.0, 18.0), alpha: 0.46, phase_offset: 1.80),
+                SceneBloodEcho(pos: (2.0, 56.0), size: (16.0, 16.0), alpha: 0.52, phase_offset: 2.25),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_backroom_to_alley",
+                    label: "Service Door -> Harbor Alley",
+                    pos: (0.0, -214.0),
+                    size: (78.0, 20.0),
+                    trigger_radius: 68.0,
+                    target_scene_id: "rain_alley",
+                    target_spawn: (0.0, 128.0),
+                    glow_rgb: (0.86, 0.42, 0.28),
+                ),
+                SceneDoorwaySpec(
+                    id: "door_backroom_to_street",
+                    label: "Club Doors -> 4th & Harbor St.",
+                    pos: (-286.0, -20.0),
+                    size: (20.0, 78.0),
+                    trigger_radius: 68.0,
+                    target_scene_id: "harbor_street",
+                    target_spawn: (218.0, 58.0),
+                    glow_rgb: (0.92, 0.72, 0.34),
+                ),
+            ],
+        ),
+
+        // =====================================================================
+        // SCENE 2: HARBOR SERVICE ALLEY (EXTERIOR ALLEY)
+        // =====================================================================
+        SceneClass(
+            id: "rain_alley",
+            title: "Harbor Service Alley",
+            environment: Alley,
+            walk_bounds: (268.0, 182.0),
+            camera_pan_bounds: (80.0, 55.0),
+            rain_drops: 60,
+            surfaces: [
+                // Wet dark cobblestones
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (564.0, 392.0),
+                    z: 0.0,
+                    normal_rgba: (0.07, 0.08, 0.11, 1.0),
+                    blood_sight_rgba: (0.04, 0.04, 0.06, 1.0),
+                    neon_flicker: None,
+                ),
+                // Central rainwater drainage channel
+                SceneSurface(
+                    pos: (0.0, -15.0),
+                    size: (520.0, 36.0),
+                    z: 0.3,
+                    normal_rgba: (0.05, 0.06, 0.09, 0.95),
+                    blood_sight_rgba: (0.03, 0.03, 0.05, 0.95),
+                    neon_flicker: None,
+                ),
+                // Flickering crimson neon sign reflection puddle
+                SceneSurface(
+                    pos: (-75.0, -70.0),
+                    size: (165.0, 54.0),
+                    z: 0.6,
+                    normal_rgba: (0.85, 0.14, 0.26, 0.22),
+                    blood_sight_rgba: (0.95, 0.08, 0.20, 0.28),
+                    neon_flicker: Some(0.22),
+                ),
+            ],
+            walls: [
+                // North brick wall of Velvet Lounge (gap at x = 0 for Back Door)
+                SceneWall(pos: (-168.0, 196.0), size: (244.0, 22.0), color_rgb: (0.19, 0.15, 0.17), solid: true),
+                SceneWall(pos: (168.0, 196.0), size: (244.0, 22.0), color_rgb: (0.19, 0.15, 0.17), solid: true),
+                // South warehouse brick wall
+                SceneWall(pos: (0.0, -196.0), size: (586.0, 22.0), color_rgb: (0.17, 0.15, 0.18), solid: true),
+                // East dead-end alley wall
+                SceneWall(pos: (282.0, 0.0), size: (22.0, 414.0), color_rgb: (0.18, 0.15, 0.17), solid: true),
+                // West brick wall (gap at y = -20 for Alley Mouth out to 4th & Harbor St.)
+                SceneWall(pos: (-282.0, 118.0), size: (22.0, 178.0), color_rgb: (0.18, 0.15, 0.17), solid: true),
+                SceneWall(pos: (-282.0, -138.0), size: (22.0, 138.0), color_rgb: (0.18, 0.15, 0.17), solid: true),
+            ],
+            props: [
+                // Stacked wooden gin crates
+                SceneProp(
+                    label: None,
+                    pos: (215.0, 92.0),
+                    size: (56.0, 52.0),
+                    z: 2.5,
+                    color_rgba: (0.29, 0.21, 0.14, 1.0),
+                    solid: true,
+                ),
+                // Rusted iron drainpipe by back wall
+                SceneProp(
+                    label: None,
+                    pos: (-66.0, 180.0),
+                    size: (14.0, 18.0),
+                    z: 2.6,
+                    color_rgba: (0.26, 0.29, 0.32, 1.0),
+                    solid: false,
+                ),
+            ],
+            characters: [],
+            clues: [
+                // Alley Dumpster with Miller's 'F.M.' handkerchief & .38 casing
+                SceneClue(
+                    id: "alley_dumpster",
+                    label: "Alley Dumpster",
+                    node_id: "inspect_dumpster",
+                    pos: (155.0, -105.0),
+                    size: (88.0, 46.0),
+                    z: 2.5,
+                    color_rgba: (0.18, 0.23, 0.22, 1.0),
+                    collider_half: Some((44.0, 23.0)),
+                    interact_radius: 86.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+            ],
+            blood_echoes: [
+                // Subtle trail of crimson drops from service door to dumpster lid!
+                SceneBloodEcho(pos: (18.0, 132.0), size: (12.0, 12.0), alpha: 0.52, phase_offset: 0.2),
+                SceneBloodEcho(pos: (58.0, 56.0), size: (11.0, 11.0), alpha: 0.48, phase_offset: 0.7),
+                SceneBloodEcho(pos: (102.0, -22.0), size: (12.0, 12.0), alpha: 0.50, phase_offset: 1.2),
+                SceneBloodEcho(pos: (126.0, -84.0), size: (26.0, 16.0), alpha: 0.68, phase_offset: 1.7),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_alley_to_backroom",
+                    label: "Back Door -> Velvet Backroom",
+                    pos: (0.0, 178.0),
+                    size: (78.0, 20.0),
+                    trigger_radius: 68.0,
+                    target_scene_id: "velvet_backroom",
+                    target_spawn: (0.0, -162.0),
+                    glow_rgb: (0.92, 0.68, 0.34),
+                ),
+                SceneDoorwaySpec(
+                    id: "door_alley_to_street",
+                    label: "Alley Mouth -> 4th & Harbor St.",
+                    pos: (-262.0, -20.0),
+                    size: (20.0, 78.0),
+                    trigger_radius: 68.0,
+                    target_scene_id: "harbor_street",
+                    target_spawn: (218.0, -95.0),
+                    glow_rgb: (0.52, 0.76, 0.94),
+                ),
+            ],
+        ),
+
+        // =====================================================================
+        // SCENE 3: 4TH & HARBOR STREET (EXTERIOR STREET)
+        // =====================================================================
+        SceneClass(
+            id: "harbor_street",
+            title: "4th & Harbor Street",
+            environment: Street,
+            walk_bounds: (288.0, 212.0),
+            camera_pan_bounds: (95.0, 75.0),
+            rain_drops: 72,
+            surfaces: [
+                // Rain-slicked asphalt avenue (center/west)
+                SceneSurface(
+                    pos: (-30.0, 0.0),
+                    size: (420.0, 448.0),
+                    z: 0.0,
+                    normal_rgba: (0.06, 0.07, 0.09, 1.0),
+                    blood_sight_rgba: (0.03, 0.03, 0.05, 1.0),
+                    neon_flicker: None,
+                ),
+                // East raised stone sidewalk in front of Velvet Lounge
+                SceneSurface(
+                    pos: (224.0, 0.0),
+                    size: (148.0, 448.0),
+                    z: 0.2,
+                    normal_rgba: (0.14, 0.14, 0.17, 1.0),
+                    blood_sight_rgba: (0.07, 0.07, 0.10, 1.0),
+                    neon_flicker: None,
+                ),
+                // West harbor boardwalk strip along dock railing
+                SceneSurface(
+                    pos: (-258.0, 0.0),
+                    size: (76.0, 448.0),
+                    z: 0.2,
+                    normal_rgba: (0.13, 0.10, 0.09, 1.0),
+                    blood_sight_rgba: (0.06, 0.05, 0.07, 1.0),
+                    neon_flicker: None,
+                ),
+                // Dashed yellow 1940s road centerline stripes
+                SceneSurface(
+                    pos: (-45.0, 145.0),
+                    size: (6.0, 68.0),
+                    z: 0.3,
+                    normal_rgba: (0.72, 0.58, 0.22, 0.55),
+                    blood_sight_rgba: (0.28, 0.22, 0.16, 0.35),
+                    neon_flicker: None,
+                ),
+                SceneSurface(
+                    pos: (-45.0, 0.0),
+                    size: (6.0, 68.0),
+                    z: 0.3,
+                    normal_rgba: (0.72, 0.58, 0.22, 0.55),
+                    blood_sight_rgba: (0.28, 0.22, 0.16, 0.35),
+                    neon_flicker: None,
+                ),
+                SceneSurface(
+                    pos: (-45.0, -145.0),
+                    size: (6.0, 68.0),
+                    z: 0.3,
+                    normal_rgba: (0.72, 0.58, 0.22, 0.55),
+                    blood_sight_rgba: (0.28, 0.22, 0.16, 0.35),
+                    neon_flicker: None,
+                ),
+                // Velvet Lounge marquee neon spill on wet sidewalk & asphalt
+                SceneSurface(
+                    pos: (198.0, 58.0),
+                    size: (155.0, 96.0),
+                    z: 0.5,
+                    normal_rgba: (0.90, 0.16, 0.30, 0.22),
+                    blood_sight_rgba: (0.96, 0.08, 0.20, 0.28),
+                    neon_flicker: Some(0.22),
+                ),
+                // Cast-iron streetlamp warm pool
+                SceneSurface(
+                    pos: (156.0, -155.0),
+                    size: (130.0, 130.0),
+                    z: 0.4,
+                    normal_rgba: (0.88, 0.68, 0.34, 0.11),
+                    blood_sight_rgba: (0.35, 0.10, 0.15, 0.08),
+                    neon_flicker: None,
+                ),
+            ],
+            walls: [
+                // North & South street blockades
+                SceneWall(pos: (0.0, 224.0), size: (620.0, 18.0), color_rgb: (0.16, 0.16, 0.20), solid: true),
+                SceneWall(pos: (0.0, -224.0), size: (620.0, 18.0), color_rgb: (0.16, 0.16, 0.20), solid: true),
+                // West harbor iron railing
+                SceneWall(pos: (-300.0, 0.0), size: (16.0, 464.0), color_rgb: (0.20, 0.22, 0.26), solid: true),
+                // East Velvet Lounge building facade (cutouts at y = 58 for Club Entrance and y = -95 for Alley)
+                SceneWall(pos: (300.0, 166.0), size: (20.0, 136.0), color_rgb: (0.24, 0.18, 0.20), solid: true),
+                SceneWall(pos: (300.0, -18.0), size: (20.0, 74.0), color_rgb: (0.24, 0.18, 0.20), solid: true),
+                SceneWall(pos: (300.0, -182.0), size: (20.0, 96.0), color_rgb: (0.24, 0.18, 0.20), solid: true),
+            ],
+            props: [
+                // Sidewalk curb line (visual stone trim)
+                SceneProp(
+                    label: None,
+                    pos: (150.0, 0.0),
+                    size: (6.0, 444.0),
+                    z: 0.9,
+                    color_rgba: (0.28, 0.28, 0.32, 1.0),
+                    solid: false,
+                ),
+                // Cast-iron streetlamp post
+                SceneProp(
+                    label: None,
+                    pos: (162.0, -155.0),
+                    size: (14.0, 14.0),
+                    z: 2.8,
+                    color_rgba: (0.85, 0.74, 0.44, 1.0),
+                    solid: true,
+                ),
+                // Prowl car roof beacon lamp
+                SceneProp(
+                    label: None,
+                    pos: (78.0, 52.0),
+                    size: (16.0, 12.0),
+                    z: 3.1,
+                    color_rgba: (0.86, 0.18, 0.22, 0.95),
+                    solid: false,
+                ),
+            ],
+            characters: [],
+            clues: [
+                // Sgt. Miller's Precinct Prowl Car #419 parked by the curb
+                SceneClue(
+                    id: "miller_prowl_car",
+                    label: "Precinct Cruiser #419",
+                    node_id: "inspect_prowl_car",
+                    pos: (78.0, 52.0),
+                    size: (60.0, 108.0),
+                    z: 2.5,
+                    color_rgba: (0.16, 0.20, 0.28, 1.0),
+                    collider_half: Some((30.0, 54.0)),
+                    interact_radius: 92.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+            ],
+            blood_echoes: [
+                // Faint crimson boot-print outside Miller's driver-side door
+                SceneBloodEcho(pos: (40.0, 52.0), size: (14.0, 20.0), alpha: 0.56, phase_offset: 0.5),
+                SceneBloodEcho(pos: (122.0, -68.0), size: (12.0, 14.0), alpha: 0.44, phase_offset: 1.4),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_street_to_backroom",
+                    label: "Club Entrance -> Velvet Backroom",
+                    pos: (280.0, 58.0),
+                    size: (20.0, 76.0),
+                    trigger_radius: 70.0,
+                    target_scene_id: "velvet_backroom",
+                    target_spawn: (-232.0, -20.0),
+                    glow_rgb: (0.94, 0.72, 0.36),
+                ),
+                SceneDoorwaySpec(
+                    id: "door_street_to_alley",
+                    label: "Side Alley -> Harbor Alley",
+                    pos: (280.0, -95.0),
+                    size: (20.0, 76.0),
+                    trigger_radius: 70.0,
+                    target_scene_id: "rain_alley",
+                    target_spawn: (-205.0, -20.0),
+                    glow_rgb: (0.52, 0.76, 0.94),
+                ),
+            ],
+        ),
+    ],
+)

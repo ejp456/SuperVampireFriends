@@ -19,7 +19,7 @@ use crate::{
     net::{DisconnectNetEvent, HostGameEvent, JoinGameEvent, NetRole, NetSession},
     senses::{BloodSight, SuspectHeartbeat},
     stats::{Archetype, DetectiveSheet, Faculty},
-    world::{NearbyHotspot, SCENE_WIDTH_FRACTION},
+    world::{ActiveScene, NearbyHotspot, SCENE_WIDTH_FRACTION},
 };
 
 #[derive(Resource, Default)]
@@ -732,6 +732,7 @@ fn update_mp_modal_ui(
 fn update_minimal_hud(
     sheet: Res<DetectiveSheet>,
     blood_sight: Res<BloodSight>,
+    active_scene: Res<ActiveScene>,
     nearby: Res<NearbyHotspot>,
     ledger: Res<ClueLedger>,
     library: Res<CaseLibrary>,
@@ -745,9 +746,14 @@ fn update_minimal_hud(
             bar.push(if i < pips { '◆' } else { '◇' });
         }
         let sight_tag = if blood_sight.active { "  •  BLOOD SIGHT ON" } else { "" };
+        let loc_title = if active_scene.current_title.is_empty() {
+            library.title.as_str()
+        } else {
+            active_scene.current_title.as_str()
+        };
         txt.0 = format!(
             "{}  |  DED {}  SAN {}  NOC {}  PUL {}  |  HUNGER {}{}",
-            library.title,
+            loc_title,
             sheet.effective_stat(Faculty::Deduction),
             sheet.effective_stat(Faculty::Sanguine),
             sheet.effective_stat(Faculty::Nocturne),

@@ -19,7 +19,7 @@ use wasm_bindgen::{prelude::Closure, JsCast};
 use crate::{
     narrative::{ClueLedger, NarrativeState},
     senses::{BloodSight, SetSuspectPulseEvent},
-    world::{CharacterVisualSprite, DetectivePlayer},
+    world::{ActiveScene, CharacterVisualSprite, DetectivePlayer},
 };
 
 #[allow(dead_code)]
@@ -43,6 +43,8 @@ pub enum NetPacket {
     },
     PeerTransform {
         peer_id: u32,
+        #[serde(default)]
+        scene_id: String,
         x: f32,
         y: f32,
         flip_x: bool,
@@ -62,8 +64,9 @@ pub enum NetPacket {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PeerSnapshot {
+    pub scene_id: String,
     pub x: f32,
     pub y: f32,
     pub flip_x: bool,
@@ -701,6 +704,7 @@ fn poll_network_transport(
             }
             NetPacket::PeerTransform {
                 peer_id,
+                scene_id,
                 x,
                 y,
                 flip_x,
@@ -711,6 +715,7 @@ fn poll_network_transport(
                     session.peers.insert(
                         peer_id,
                         PeerSnapshot {
+                            scene_id,
                             x,
                             y,
                             flip_x,
@@ -748,6 +753,7 @@ fn poll_network_transport(
 fn broadcast_local_state(
     time: Res<Time>,
     mut session: ResMut<NetSession>,
+    active_scene: Res<ActiveScene>,
     ledger: Res<ClueLedger>,
     blood_sight: Res<BloodSight>,
     mut pulse_events: EventReader<SetSuspectPulseEvent>,
@@ -783,6 +789,7 @@ fn broadcast_local_state(
             let flip_x = visual_q.get_single().map(|s| s.flip_x).unwrap_or(false);
             outgoing.push(NetPacket::PeerTransform {
                 peer_id: session.my_peer_id,
+                scene_id: active_scene.current_id.clone(),
                 x: tf.translation.x,
                 y: tf.translation.y,
                 flip_x,

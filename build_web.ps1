@@ -17,7 +17,5 @@ Write-Host "==> Generating browser JS/WASM bindings in web/pkg/..." -ForegroundC
     --no-typescript `
     (Join-Path $ProjectRoot "target\wasm32-unknown-unknown\release\vampire_noir_rpg.wasm")
 
-Write-Host "==> Building local HTTP + WebSocket Co-op Server..." -ForegroundColor Cyan
-cargo build --release --bin web_server
-
-Write-Host "`nDone! Run .\target\release\web_server.exe and open http://127.0.0.1:8080 in your browser." -ForegroundColor Green
+Write-Host "`nDone! Launch the Linux server in WSL with:" -ForegroundColor Green
+Write-Host "  wsl.exe bash /mnt/c/Users/etaip/.gemini/antigravity/scratch/vampire_noir_rpg/run_wsl_server.sh" -ForegroundColor Yellow

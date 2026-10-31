@@ -26,20 +26,61 @@ struct RelayState {
     conn_to_room: HashMap<u64, (String, u32)>,
 }
 
+fn resolve_project_root(explicit_arg: Option<String>) -> PathBuf {
+    if let Some(arg) = explicit_arg {
+        let p = PathBuf::from(arg);
+        if p.join("web").join("index.html").exists() {
+            return p;
+        }
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        if cwd.join("web").join("index.html").exists() {
+            return cwd;
+        }
+    }
+
+    if let Ok(exe) = std::env::current_exe() {
+        let mut cur = exe.parent();
+        while let Some(dir) = cur {
+            if dir.join("web").join("index.html").exists() {
+                return dir.to_path_buf();
+            }
+            cur = dir.parent();
+        }
+    }
+
+    if let Some(manifest) = option_env!("CARGO_MANIFEST_DIR") {
+        let p = PathBuf::from(manifest);
+        if p.exists() {
+            return p;
+        }
+    }
+
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
 fn main() {
-    let port: u16 = std::env::args()
-        .nth(1)
+    let mut args = std::env::args().skip(1);
+    let port: u16 = args
+        .next()
         .and_then(|s| s.parse().ok())
         .unwrap_or(8080);
+    let root = resolve_project_root(args.next());
 
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let listener = TcpListener::bind(("0.0.0.0", port))
         .unwrap_or_else(|e| panic!("Failed to bind port {port}: {e}"));
 
     println!("============================================================");
-    println!("  Crimson Ledger — WebAssembly & Co-op Relay Server");
+    println!(
+        "  Crimson Ledger — WebAssembly & Co-op Relay Server ({}/{})",
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
+    println!("  Serving root: {}", root.display());
     println!("  Open in browser: http://127.0.0.1:{port}");
     println!("============================================================");
+    let _ = std::io::stdout().flush();
 
     let state = Arc::new(Mutex::new(RelayState::default()));
     let mut next_conn_id: u64 = 1;

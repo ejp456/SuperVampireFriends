@@ -4,6 +4,8 @@ A *Disco Elysium*-inspired narrative detective RPG built in pure Rust with **Bev
 
 ## Quick Start
 
+> For full step-by-step setup instructions (prerequisites, Desktop build, WebAssembly browser server, and LAN/browser Co-op), see **[RUNNING_LOCALLY.md](RUNNING_LOCALLY.md)**.
+
 ```powershell
 cargo run
 ```

@@ -1,0 +1,553 @@
+CaseData(
+    title: "THE VELVET ALIBI",
+    subtitle: "2:14 AM",
+    opening_node: "intro_arrival",
+    clues: [
+        ClueDef(
+            id: "clue_staged_rug",
+            title: "Too-Clean Rug",
+            summary: "Almost no blood soaked into the rug under Vance's chest wound.",
+        ),
+        ClueDef(
+            id: "clue_dragged_body",
+            title: "Crimson Drag Trail",
+            summary: "Blood Sight shows heel smears leading from the north stage curtain.",
+        ),
+        ClueDef(
+            id: "clue_perfume_and_brass",
+            title: "Jasmine & Police Oil",
+            summary: "Vance's collar smells of jasmine perfume and precinct gun oil.",
+        ),
+        ClueDef(
+            id: "clue_curtain_kill_site",
+            title: "Curtain Kill Site",
+            summary: "A gin-scrubbed blood pool proves Vance was shot behind the curtain.",
+        ),
+        ClueDef(
+            id: "clue_left_handed_revolver",
+            title: "Left-Handed .38 Shot",
+            summary: "Spatter angle shows a heavy .38 fired left-handed up close.",
+        ),
+        ClueDef(
+            id: "clue_coded_payouts",
+            title: "Ledger: BADGE 419",
+            summary: "Vance paid hush money to 'BADGE 419' and held leverage over Clara's brother.",
+        ),
+        ClueDef(
+            id: "clue_monogram_handkerchief",
+            title: "'F.M.' Cloth & .38 Casing",
+            summary: "A bloodied silk cloth ('F.M.') and .38 casing hidden in the alley dumpster.",
+        ),
+        ClueDef(
+            id: "clue_clara_testimony",
+            title: "Clara's Confession",
+            summary: "Clara saw Sgt. Miller (Badge 419) shoot Vance behind the curtain.",
+        ),
+    ],
+    nodes: [
+        DialogueNode(
+            id: "intro_arrival",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "\"Stickup gone bad, Vale. Sign the report so we can both get out of the rain before dawn.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 72.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Sanguine),
+                    min_stat: 2,
+                    requires_blood_sight: false,
+                    text: "Fresh gin and scrubbed blood in the air. Press [Tab] to use Blood Sight.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Give me five minutes with the room first, Frank.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- HOTSPOT: CORPSE ----------------
+        DialogueNode(
+            id: "inspect_corpse",
+            speaker: "JULIAN VANCE (CORPSE)",
+            active_suspect_id: None,
+            text: "A single .38 hole through his vest. Oddly, there's barely a drop of blood on the rug beneath him.",
+            grants_clues: ["clue_staged_rug"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 2,
+                    requires_blood_sight: false,
+                    text: "He bled out somewhere else and was moved here.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Blood Sight] Trace the glowing red smears by his heels.",
+                    next_node: "inspect_corpse_blood_sight",
+                    requires_blood_sight: true,
+                    hide_if_clue: Some("clue_dragged_body"),
+                ),
+                DialogueChoice(
+                    label: "Check the scent on his collar.",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "chk_corpse_scent",
+                        faculty: Sanguine,
+                        dc: 9,
+                        success_node: "corpse_scent_ok",
+                        failure_node: "corpse_scent_fail",
+                        hunger_cost: 0.35,
+                    )),
+                ),
+                DialogueChoice(
+                    label: "Step back.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "inspect_corpse_blood_sight",
+            speaker: "JULIAN VANCE (CORPSE)",
+            active_suspect_id: None,
+            text: "Faint crimson heel-marks streak straight north toward the velvet stage curtain.",
+            grants_clues: ["clue_dragged_body"],
+            pulse_trigger: None,
+            hunger_delta: 0.15,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Follow the trail north.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corpse_scent_ok",
+            speaker: "JULIAN VANCE (CORPSE)",
+            active_suspect_id: None,
+            text: "Two scents linger under the gunsmoke: Clara's jasmine perfume and precinct-issue gun oil.",
+            grants_clues: ["clue_perfume_and_brass"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corpse_scent_fail",
+            speaker: "JULIAN VANCE (CORPSE)",
+            active_suspect_id: None,
+            text: "Spilled gin and stale cigar smoke drown out everything else.",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.25,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- HOTSPOT: POKER TABLE ----------------
+        DialogueNode(
+            id: "inspect_table",
+            speaker: "OVERTURNED TABLE",
+            active_suspect_id: None,
+            text: "Wedged under a table leg is Vance's ledger: '$400 — BADGE 419' beside a note on Danny Moreau's arrest.",
+            grants_clues: ["clue_coded_payouts"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Breathe the cool draft to steady your thirst. [-Hunger]",
+                    next_node: "table_steady_breath",
+                ),
+                DialogueChoice(
+                    label: "Pocket the ledger.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "table_steady_breath",
+            speaker: "OVERTURNED TABLE",
+            active_suspect_id: None,
+            text: "The cold night air clears the crimson haze behind your eyes.",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: -0.9,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Done.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- HOTSPOT: CURTAIN BLOOD ECHO ----------------
+        DialogueNode(
+            id: "inspect_curtain_echo",
+            speaker: "VELVET CURTAIN",
+            active_suspect_id: None,
+            text: "Blood Sight reveals a pooled crimson stain scrubbed with bar gin. Vance was shot right here.",
+            grants_clues: ["clue_curtain_kill_site"],
+            pulse_trigger: None,
+            hunger_delta: 0.1,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Check the spatter angle on the wall.",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "chk_curtain_geometry",
+                        faculty: Deduction,
+                        dc: 9,
+                        success_node: "curtain_geometry_ok",
+                        failure_node: "curtain_geometry_fail",
+                        hunger_cost: 0.0,
+                    )),
+                ),
+                DialogueChoice(
+                    label: "Step away.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "curtain_geometry_ok",
+            speaker: "VELVET CURTAIN",
+            active_suspect_id: None,
+            text: "Close-range .38 revolver — drawn and fired left-handed.",
+            grants_clues: ["clue_left_handed_revolver"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_blood_sight: false,
+                    text: "Sgt. Miller wears his holster on his left hip.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Step away.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "curtain_geometry_fail",
+            speaker: "VELVET CURTAIN",
+            active_suspect_id: None,
+            text: "The gin towel smeared the finer droplets too badly to read the firing hand.",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step away.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- HOTSPOT: ALLEY DUMPSTER ----------------
+        DialogueNode(
+            id: "inspect_dumpster",
+            speaker: "ALLEY DUMPSTER",
+            active_suspect_id: None,
+            text: "Hidden under wet newspaper: a bloodied silk handkerchief monogrammed 'F.M.' wrapped around a .38 casing.",
+            grants_clues: ["clue_monogram_handkerchief"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Take the handkerchief and casing.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- NPC: CLARA MOREAU ----------------
+        DialogueNode(
+            id: "talk_clara",
+            speaker: "CLARA MOREAU",
+            active_suspect_id: Some("clara"),
+            text: "\"I already told Sgt. Miller — I was out front singing when the gun went off.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "clara",
+                target_bpm: 138.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_blood_sight: false,
+                    text: "Her pulse just jumped to 138 BPM. She's lying.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 3,
+                    requires_blood_sight: false,
+                    text: "138 BPM — her vein hammers warm under her pearls.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Your heart's racing, Clara. Who was really back here?\"",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "chk_clara_pulse_press",
+                        faculty: Pulse,
+                        dc: 10,
+                        success_node: "clara_confesses",
+                        failure_node: "clara_guarded",
+                        hunger_cost: 0.25,
+                    )),
+                ),
+                DialogueChoice(
+                    label: "\"Vance was killed behind your curtain and scrubbed with gin.\"",
+                    next_node: "clara_confesses",
+                    requires_clue: Some("clue_curtain_kill_site"),
+                    hide_if_clue: Some("clue_clara_testimony"),
+                ),
+                DialogueChoice(
+                    label: "\"Vance's ledger ties your brother to Badge 419. Talk to me.\"",
+                    next_node: "clara_confesses",
+                    requires_clue: Some("clue_coded_payouts"),
+                    hide_if_clue: Some("clue_clara_testimony"),
+                ),
+                DialogueChoice(
+                    label: "\"We'll talk in a minute.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "clara_guarded",
+            speaker: "CLARA MOREAU",
+            active_suspect_id: Some("clara"),
+            text: "\"Bring me real proof before asking me to cross a homicide sergeant, Mr. Vale.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "clara",
+                target_bpm: 112.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Fair enough.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "clara_confesses",
+            speaker: "CLARA MOREAU",
+            active_suspect_id: Some("clara"),
+            text: "\"Keep your voice down... Miller's Badge 419. He shot Julian behind the curtain with his left hand, threatened my brother, and tossed a cloth in the alley dumpster.\"",
+            grants_clues: ["clue_clara_testimony"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "clara",
+                target_bpm: 84.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Stay behind the bar, Clara. I'll handle Miller.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- NPC: SGT. FRANK MILLER ----------------
+        DialogueNode(
+            id: "talk_miller",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "\"Open-and-shut robbery, Vale. Vance flashed too much gold.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 72.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 2,
+                    requires_blood_sight: false,
+                    text: "His tarnished shield reads 419 — and his holster sits on his left hip.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Hold up the bloodied 'F.M.' handkerchief and .38 casing.",
+                    next_node: "miller_confrontation",
+                    requires_clue: Some("clue_monogram_handkerchief"),
+                ),
+                DialogueChoice(
+                    label: "\"Badge 419. Clara saw you shoot him behind the curtain, Frank.\"",
+                    next_node: "miller_confrontation",
+                    requires_clue: Some("clue_clara_testimony"),
+                ),
+                DialogueChoice(
+                    label: "\"Left-handed .38 behind the curtain. Open your cylinder, Sergeant.\"",
+                    next_node: "miller_confrontation",
+                    requires_clue: Some("clue_left_handed_revolver"),
+                ),
+                DialogueChoice(
+                    label: "\"Still looking around, Sergeant.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "miller_confrontation",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "Miller's hand twitches toward his left holster. \"Careful, night-crawler — nobody misses a dead blackmailer.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 148.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 1,
+                    requires_blood_sight: false,
+                    text: "148 BPM — he's about to draw or break.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Disarm him and call Internal Affairs.",
+                    next_node: "ending_clean_justice",
+                ),
+                DialogueChoice(
+                    label: "\"Drop Danny Moreau's charges — Badge 419 works for me now.\"",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "chk_miller_blackmail",
+                        faculty: Nocturne,
+                        dc: 10,
+                        success_node: "ending_shadow_broker",
+                        failure_node: "ending_clean_justice",
+                        hunger_cost: 0.0,
+                    )),
+                ),
+                DialogueChoice(
+                    label: "Let your eyes catch the red neon and terrify a confession out of him.",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "chk_miller_dread",
+                        faculty: Pulse,
+                        dc: 9,
+                        success_node: "ending_crimson_verdict",
+                        failure_node: "ending_clean_justice",
+                        hunger_cost: 0.5,
+                    )),
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_clean_justice",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "You pin his wrist and take the .38 before he clears leather. By 4 AM, Internal Affairs has the gun, the ledger, and Miller in cuffs. [CASE CLOSED]",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 96.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: -0.5,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back into the lounge.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_shadow_broker",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "Miller swallows hard and takes his hand off his gun. \"Deal, Vale. The kid walks at 8 AM — and my files are yours.\" [CASE CLOSED]",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 108.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back into the lounge.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_crimson_verdict",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "\"God in heaven—your eyes...\" Miller stumbles back into the rain and scrawls a signed confession on his prowl car hood before you cuff him to the drainpipe. [CASE CLOSED]",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 132.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: -0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back into the night.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+    ],
+)

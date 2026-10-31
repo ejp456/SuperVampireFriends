@@ -1,0 +1,57 @@
+[package]
+name = "vampire_noir_rpg"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+default-run = "vampire_noir_rpg"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(getrandom_backend, values("wasm_js"))'] }
+
+[dependencies]
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_asset",
+    "bevy_color",
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_state",
+    "bevy_text",
+    "bevy_ui",
+    "bevy_winit",
+    "default_font",
+    "multi_threaded",
+    "png",
+] }
+fastrand = "2.1"
+image = { version = "=0.25.5", default-features = false, features = ["png", "jpeg"] }
+ron = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+bevy_core_pipeline = { version = "=0.15.3", default-features = false, features = ["webgl"] }
+bevy_gizmos = { version = "=0.15.3", default-features = false, features = ["webgl"] }
+bevy_render = { version = "=0.15.3", default-features = false, features = ["webgl"] }
+bevy_sprite = { version = "=0.15.3", default-features = false, features = ["webgl"] }
+getrandom_02 = { package = "getrandom", version = "0.2.17", features = ["js"] }
+getrandom_03 = { package = "getrandom", version = "0.3.4", features = ["wasm_js"] }
+getrandom_04 = { package = "getrandom", version = "0.4.3", features = ["wasm_js"] }
+js-sys = "=0.3.107"
+wasm-bindgen = "=0.2.130"
+web-sys = { version = "=0.3.107", features = [
+    "BinaryType",
+    "Location",
+    "MessageEvent",
+    "WebSocket",
+    "Window",
+] }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = "s"
+lto = "thin"

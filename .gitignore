@@ -1,0 +1,14 @@
+# Rust / Cargo build outputs
+/target/
+
+# Generated WebAssembly bindings (rebuilt via ./build_web.ps1)
+/web/pkg/
+
+# Local downloaded toolchains & archives
+/wasm-bindgen-*/
+/wasm-bindgen.tar.gz
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+*.swp

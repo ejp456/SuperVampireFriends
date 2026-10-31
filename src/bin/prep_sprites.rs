@@ -82,7 +82,7 @@ fn process_sprite(input_path: &Path, output_path: &Path, target_canvas: u32) -> 
         }
     }
 
-    // Clear enclosed bright #00FF00 gaps (between arms/body/legs) while preserving dark emerald gown.
+    // Clear enclosed bright #00FF00 gaps (between arms/body/legs) while preserving dark fabrics/cyan wisps.
     for y in 0..h {
         for x in 0..w {
             let idx = (y * w + x) as usize;
@@ -180,7 +180,18 @@ fn process_sprite(input_path: &Path, output_path: &Path, target_canvas: u32) -> 
 fn process_portrait(input_path: &Path, output_path: &Path, size: u32) -> Result<(), String> {
     let dyn_img = image::open(input_path)
         .map_err(|e| format!("Failed to open {}: {e}", input_path.display()))?;
-    let resized = image::imageops::resize(&dyn_img.to_rgba8(), size, size, FilterType::Lanczos3);
+    let rgba = dyn_img.to_rgba8();
+    let (w, h) = rgba.dimensions();
+    // Auto-trim any bright outer frame margin if corners are near-white
+    let c = rgba.get_pixel(0, 0);
+    let src_img = if c[0] > 200 && c[1] > 200 && c[2] > 200 && w > 80 && h > 80 {
+        let trim_x = (w as f32 * 0.05) as u32;
+        let trim_y = (h as f32 * 0.05) as u32;
+        dyn_crop(&rgba, trim_x, trim_y, w - trim_x * 2, h - trim_y * 2)
+    } else {
+        rgba
+    };
+    let resized = image::imageops::resize(&src_img, size, size, FilterType::Lanczos3);
     if let Some(parent) = output_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -202,14 +213,13 @@ fn dyn_crop(img: &RgbaImage, x: u32, y: u32, w: u32, h: u32) -> RgbaImage {
 }
 
 fn main() {
-    let brain = Path::new(r"C:\Users\etaip\.gemini\antigravity\brain\83366195-8834-4459-9701-076d152f22be");
+    let brain = Path::new(r"C:\Users\etaip\.gemini\antigravity\brain\785274c2-88ad-47b3-a5bc-07e0c8985351");
     let assets = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"));
 
     let sprite_jobs = [
-        ("vale_sprite_raw_1793475228150.jpg", "sprites/vale.png", 128u32),
-        ("clara_sprite_raw_1793475250413.jpg", "sprites/clara.png", 128u32),
-        ("miller_sprite_raw_1793475267395.jpg", "sprites/miller.png", 128u32),
-        ("vance_corpse_raw_1793475283659.jpg", "sprites/vance_corpse.png", 160u32),
+        ("lucker_ron_sprite_1793484818504.jpg", "sprites/lucker_ron.png", 128u32),
+        ("pinckney_sprite_1793484835513.jpg", "sprites/pinckney.png", 128u32),
+        ("zombie_sprite_1793484851307.jpg", "sprites/zombie.png", 128u32),
     ];
 
     for (src, dst, sz) in sprite_jobs {
@@ -220,9 +230,9 @@ fn main() {
     }
 
     let portrait_jobs = [
-        ("vale_portrait_1793475236165.jpg", "portraits/vale_portrait.png", 256u32),
-        ("clara_portrait_1793475250226.jpg", "portraits/clara_portrait.png", 256u32),
-        ("miller_portrait_1793475265062.jpg", "portraits/miller_portrait.png", 256u32),
+        ("lucker_ron_portrait_1793484769751.jpg", "portraits/lucker_ron_portrait.png", 256u32),
+        ("pinckney_portrait_1793484782955.jpg", "portraits/pinckney_portrait.png", 256u32),
+        ("zombie_portrait_1793484801008.jpg", "portraits/zombie_portrait.png", 256u32),
     ];
 
     for (src, dst, sz) in portrait_jobs {

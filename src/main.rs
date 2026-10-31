@@ -28,7 +28,7 @@ fn main() {
     };
 
     let primary_window = Window {
-        title: "Crimson Ledger — Co-op Vampire Noir Detective RPG".to_string(),
+        title: "Crimson Ledger — Supernatural Noir Detective RPG".to_string(),
         resolution: WindowResolution::new(1360.0, 820.0),
         resizable: true,
         #[cfg(target_arch = "wasm32")]
@@ -97,9 +97,10 @@ fn force_show_window_after_startup(
 mod tests {
     use super::*;
     use bevy::input::InputPlugin;
+    use stats::{DetectiveId, DetectiveSheet};
 
     #[test]
-    fn headless_ecs_schedule_runs_without_query_conflicts() {
+    fn headless_ecs_schedule_runs_and_switches_all_four_detectives() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, InputPlugin))
             .insert_resource(ClearColor(Color::BLACK))
@@ -115,8 +116,30 @@ mod tests {
         app.update();
         app.update();
 
+        // Character selection modal opens on startup
+        assert!(app.world().resource::<ui::CharacterSelectModalOpen>().0);
+
         let nar = app.world().resource::<narrative::NarrativeState>();
-        assert!(!nar.other_line.is_empty(), "Opening line should populate on startup");
-        assert!(!nar.current_choices.is_empty(), "Opening choices should populate on startup");
+        assert!(nar.other_line.contains("Richey"));
+        assert!(!nar.current_choices.is_empty());
+
+        // Switch through Lucker & Ron, Pinckney, and Zombie Graves and verify live sync
+        for (det, expected_addr) in [
+            (DetectiveId::LuckerAndRon, "Ron"),
+            (DetectiveId::Pinckney, "Pinckney"),
+            (DetectiveId::Zombie, "Graves"),
+            (DetectiveId::Richey, "Richey"),
+        ] {
+            *app.world_mut().resource_mut::<DetectiveSheet>() = DetectiveSheet::from_character(det);
+            app.update();
+
+            let nar = app.world().resource::<narrative::NarrativeState>();
+            assert!(
+                nar.other_line.contains(expected_addr),
+                "Expected '{}' in opening line '{}'",
+                expected_addr,
+                nar.other_line
+            );
+        }
     }
 }

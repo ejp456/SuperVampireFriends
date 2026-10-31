@@ -29,9 +29,9 @@ impl Faculty {
     pub fn short_desc(&self) -> &'static str {
         match self {
             Faculty::Deduction => "Ballistics, timelines, cold forensic geometry",
-            Faculty::Sanguine => "Blood chemistry, iron scent, echoes of violence",
-            Faculty::Nocturne => "1940s streetwise cynicism, underworld etiquette",
-            Faculty::Pulse => "Predator acoustics, heartbeat lies, intimidation",
+            Faculty::Sanguine => "Blood spoor, scent chemistry, post-mortem residue",
+            Faculty::Nocturne => "1940s streetwise cynicism, underworld & veil lore",
+            Faculty::Pulse => "Heartbeat lies, fear-sweat, aura pressure, dread",
         }
     }
 
@@ -45,50 +45,192 @@ impl Faculty {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Archetype {
-    ForensicHound,
-    BloodMystic,
-    MidnightEnforcer,
+/// The 4 selectable supernatural detectives in Crimson Ledger.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum DetectiveId {
+    #[default]
+    Richey,
+    LuckerAndRon,
+    Pinckney,
+    Zombie,
 }
 
-impl Archetype {
-    pub fn title(&self) -> &'static str {
+impl DetectiveId {
+    #[allow(dead_code)]
+    pub const ALL: [DetectiveId; 4] = [
+        DetectiveId::Richey,
+        DetectiveId::LuckerAndRon,
+        DetectiveId::Pinckney,
+        DetectiveId::Zombie,
+    ];
+
+    pub fn display_name(&self) -> &'static str {
         match self {
-            Archetype::ForensicHound => "The Forensic Hound",
-            Archetype::BloodMystic => "The Blood Seer",
-            Archetype::MidnightEnforcer => "The Midnight Enforcer",
+            DetectiveId::Richey => "Detective Richey",
+            DetectiveId::LuckerAndRon => "Det. Lucker & Ron",
+            DetectiveId::Pinckney => "Detective Pinckney",
+            DetectiveId::Zombie => "Detective Graves",
+        }
+    }
+
+    pub fn species_badge(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "VAMPIRE",
+            DetectiveId::LuckerAndRon => "GHOST (LUCKER) + HUMAN (RON)",
+            DetectiveId::Pinckney => "WEREWOLF",
+            DetectiveId::Zombie => "ZOMBIE REVENANT",
+        }
+    }
+
+    pub fn dialogue_you_header(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "YOU — DET. RICHEY (VAMPIRE)",
+            DetectiveId::LuckerAndRon => "YOU — RON & GHOST DET. LUCKER",
+            DetectiveId::Pinckney => "YOU — DET. PINCKNEY (WEREWOLF)",
+            DetectiveId::Zombie => "YOU — DET. GRAVES (ZOMBIE)",
+        }
+    }
+
+    /// How suspects address the player in dialogue (`{detective}`).
+    pub fn npc_address(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "Richey",
+            DetectiveId::LuckerAndRon => "Ron",
+            DetectiveId::Pinckney => "Pinckney",
+            DetectiveId::Zombie => "Graves",
+        }
+    }
+
+    pub fn sense_name(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "Vampire Senses",
+            DetectiveId::LuckerAndRon => "Phantom Sight",
+            DetectiveId::Pinckney => "Lupine Scent",
+            DetectiveId::Zombie => "Mortis Sight",
+        }
+    }
+
+    pub fn strain_label(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "THIRST",
+            DetectiveId::LuckerAndRon => "SYNC",
+            DetectiveId::Pinckney => "FURY",
+            DetectiveId::Zombie => "DECAY",
+        }
+    }
+
+    pub fn hotkey_label(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "F1",
+            DetectiveId::LuckerAndRon => "F2",
+            DetectiveId::Pinckney => "F3",
+            DetectiveId::Zombie => "F4",
+        }
+    }
+
+    pub fn accent_color(&self) -> Color {
+        match self {
+            DetectiveId::Richey => Color::srgb(0.94, 0.20, 0.30),
+            DetectiveId::LuckerAndRon => Color::srgb(0.36, 0.86, 0.98),
+            DetectiveId::Pinckney => Color::srgb(0.98, 0.70, 0.22),
+            DetectiveId::Zombie => Color::srgb(0.74, 0.48, 0.96),
+        }
+    }
+
+    pub fn walk_speed(&self) -> f32 {
+        match self {
+            DetectiveId::Richey => 205.0,
+            DetectiveId::LuckerAndRon => 208.0,
+            DetectiveId::Pinckney => 234.0,
+            DetectiveId::Zombie => 188.0,
+        }
+    }
+
+    pub fn sprite_path(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "sprites/richey.png",
+            DetectiveId::LuckerAndRon => "sprites/lucker_ron.png",
+            DetectiveId::Pinckney => "sprites/pinckney.png",
+            DetectiveId::Zombie => "sprites/zombie.png",
+        }
+    }
+
+    pub fn portrait_path(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => "portraits/richey_portrait.png",
+            DetectiveId::LuckerAndRon => "portraits/lucker_ron_portrait.png",
+            DetectiveId::Pinckney => "portraits/pinckney_portrait.png",
+            DetectiveId::Zombie => "portraits/zombie_portrait.png",
+        }
+    }
+
+    pub fn bio(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => {
+                "Night-shift homicide vampire. Reads scrubbed crimson trails and hears every skipped heartbeat."
+            }
+            DetectiveId::LuckerAndRon => {
+                "Ghost ace Det. Lucker rides shotgun inside nervous human host Ron—whispering clues from beyond."
+            }
+            DetectiveId::Pinckney => {
+                "Harbor werewolf investigator. Tracks cordite, perfume & fear-sweat through pouring rain."
+            }
+            DetectiveId::Zombie => {
+                "Stitched morgue revenant who walked off the slab. Reconstructs wounds via undead psychometry."
+            }
+        }
+    }
+
+    pub fn abilities_summary(&self) -> &'static str {
+        match self {
+            DetectiveId::Richey => {
+                "• [Tab] Vampire Senses: Blood trails & live BPM lie rings\n• Crimson Gaze & Blood Chemistry checks (High Thirst: +SAN/+PUL, -DED)"
+            }
+            DetectiveId::LuckerAndRon => {
+                "• [Tab] Phantom Sight: Death echoes & spirit guilt auras\n• Corpse Séance & Ghost Possession voice (High Sync: +DED/+NOC, -PUL)"
+            }
+            DetectiveId::Pinckney => {
+                "• [Tab] Lupine Scent: Scent plumes & fear-adrenaline spikes\n• Fast prowler stride & Alpha Snarl (High Fury: +2 PUL/+1 SAN, -DED/-NOC)"
+            }
+            DetectiveId::Zombie => {
+                "• [Tab] Mortis Sight: Tissue psychometry & autopsy lividity\n• Painless bullet-proof nerve & Corpse Recall (High Decay: +DED/+SAN, -NOC)"
+            }
+        }
+    }
+
+    pub fn base_stats(&self) -> (i32, i32, i32, i32) {
+        match self {
+            // (Deduction, Sanguine, Nocturne, Pulse)
+            DetectiveId::Richey => (3, 4, 2, 3),
+            DetectiveId::LuckerAndRon => (4, 2, 4, 2),
+            DetectiveId::Pinckney => (2, 3, 2, 5),
+            DetectiveId::Zombie => (4, 4, 3, 1),
         }
     }
 }
 
 #[derive(Resource, Debug, Clone)]
 pub struct DetectiveSheet {
-    pub archetype_title: String,
+    pub character: DetectiveId,
     pub deduction: i32,
     pub sanguine: i32,
     pub nocturne: i32,
     pub pulse: i32,
-    /// Ranges from 0.0 (steady) to 5.0 (ravenous).
-    /// High hunger (>= 3.0) sharpens Sanguine & Pulse (+1) at the cost of Deduction (-1).
+    /// Supernatural strain (Thirst / Sync / Fury / Decay), from 0.0 to 5.0.
     pub hunger: f32,
 }
 
 impl Default for DetectiveSheet {
     fn default() -> Self {
-        Self::from_archetype(Archetype::ForensicHound)
+        Self::from_character(DetectiveId::Richey)
     }
 }
 
 impl DetectiveSheet {
-    pub fn from_archetype(archetype: Archetype) -> Self {
-        let (deduction, sanguine, nocturne, pulse) = match archetype {
-            Archetype::ForensicHound => (4, 2, 2, 3),
-            Archetype::BloodMystic => (2, 4, 3, 2),
-            Archetype::MidnightEnforcer => (2, 2, 3, 4),
-        };
+    pub fn from_character(character: DetectiveId) -> Self {
+        let (deduction, sanguine, nocturne, pulse) = character.base_stats();
         Self {
-            archetype_title: archetype.title().to_string(),
+            character,
             deduction,
             sanguine,
             nocturne,
@@ -108,14 +250,30 @@ impl DetectiveSheet {
 
     pub fn effective_stat(&self, faculty: Faculty) -> i32 {
         let base = self.base_stat(faculty);
-        if self.hunger >= 3.0 {
-            match faculty {
+        if self.hunger < 3.0 {
+            return base;
+        }
+        match self.character {
+            DetectiveId::Richey => match faculty {
                 Faculty::Sanguine | Faculty::Pulse => base + 1,
                 Faculty::Deduction => (base - 1).max(0),
                 Faculty::Nocturne => base,
-            }
-        } else {
-            base
+            },
+            DetectiveId::LuckerAndRon => match faculty {
+                Faculty::Deduction | Faculty::Nocturne => base + 1,
+                Faculty::Pulse => (base - 1).max(0),
+                Faculty::Sanguine => base,
+            },
+            DetectiveId::Pinckney => match faculty {
+                Faculty::Pulse => base + 2,
+                Faculty::Sanguine => base + 1,
+                Faculty::Deduction | Faculty::Nocturne => (base - 1).max(0),
+            },
+            DetectiveId::Zombie => match faculty {
+                Faculty::Deduction | Faculty::Sanguine => base + 1,
+                Faculty::Nocturne => (base - 1).max(0),
+                Faculty::Pulse => base,
+            },
         }
     }
 
@@ -209,15 +367,34 @@ mod tests {
     }
 
     #[test]
-    fn hunger_modifies_predatory_and_rational_faculties() {
-        let mut sheet = DetectiveSheet::from_archetype(Archetype::ForensicHound);
-        assert_eq!(sheet.effective_stat(Faculty::Deduction), 4);
-        assert_eq!(sheet.effective_stat(Faculty::Pulse), 3);
+    fn each_detective_has_unique_supernatural_overdrive_modifiers() {
+        // 1. Richey (Vampire — Thirst)
+        let mut richey = DetectiveSheet::from_character(DetectiveId::Richey);
+        richey.hunger = 3.5;
+        assert_eq!(richey.effective_stat(Faculty::Sanguine), 5);
+        assert_eq!(richey.effective_stat(Faculty::Pulse), 4);
+        assert_eq!(richey.effective_stat(Faculty::Deduction), 2);
 
-        sheet.hunger = 3.5;
-        assert_eq!(sheet.effective_stat(Faculty::Deduction), 3);
-        assert_eq!(sheet.effective_stat(Faculty::Pulse), 4);
-        assert_eq!(sheet.effective_stat(Faculty::Sanguine), 3);
+        // 2. Lucker & Ron (Ghost + Possessed Human — Sync)
+        let mut lucker = DetectiveSheet::from_character(DetectiveId::LuckerAndRon);
+        lucker.hunger = 3.5;
+        assert_eq!(lucker.effective_stat(Faculty::Deduction), 5);
+        assert_eq!(lucker.effective_stat(Faculty::Nocturne), 5);
+        assert_eq!(lucker.effective_stat(Faculty::Pulse), 1);
+
+        // 3. Pinckney (Werewolf — Fury)
+        let mut pinckney = DetectiveSheet::from_character(DetectiveId::Pinckney);
+        pinckney.hunger = 3.5;
+        assert_eq!(pinckney.effective_stat(Faculty::Pulse), 7);
+        assert_eq!(pinckney.effective_stat(Faculty::Sanguine), 4);
+        assert_eq!(pinckney.effective_stat(Faculty::Deduction), 1);
+
+        // 4. Graves (Zombie — Decay)
+        let mut zombie = DetectiveSheet::from_character(DetectiveId::Zombie);
+        zombie.hunger = 3.5;
+        assert_eq!(zombie.effective_stat(Faculty::Deduction), 5);
+        assert_eq!(zombie.effective_stat(Faculty::Sanguine), 5);
+        assert_eq!(zombie.effective_stat(Faculty::Nocturne), 2);
     }
 
     #[test]

@@ -18,12 +18,23 @@ use crate::{
     narrative::{CaseLibrary, ClueLedger, NarrativeState, SelectChoiceEvent},
     net::{DisconnectNetEvent, HostGameEvent, JoinGameEvent, NetRole, NetSession},
     senses::{BloodSight, SuspectHeartbeat},
-    stats::{Archetype, DetectiveSheet, Faculty},
+    stats::{DetectiveId, DetectiveSheet, Faculty},
     world::{ActiveScene, NearbyHotspot, SCENE_WIDTH_FRACTION},
 };
 
 #[derive(Resource, Default)]
 pub struct LedgerModalOpen(pub bool);
+
+/// Opens on game launch so players can pick their supernatural detective,
+/// and can be reopened anytime with `[C]` or the bottom HUD button.
+#[derive(Resource)]
+pub struct CharacterSelectModalOpen(pub bool);
+
+impl Default for CharacterSelectModalOpen {
+    fn default() -> Self {
+        Self(true)
+    }
+}
 
 #[derive(Resource, Default)]
 pub struct MultiplayerModalOpen {
@@ -33,17 +44,31 @@ pub struct MultiplayerModalOpen {
 
 #[derive(Resource, Default, Clone)]
 pub struct PortraitAssets {
-    pub vale: Option<Handle<Image>>,
+    pub richey: Option<Handle<Image>>,
+    pub lucker_ron: Option<Handle<Image>>,
+    pub pinckney: Option<Handle<Image>>,
+    pub zombie: Option<Handle<Image>>,
     pub clara: Option<Handle<Image>>,
     pub miller: Option<Handle<Image>>,
 }
 
 impl PortraitAssets {
+    pub fn for_detective(&self, character: DetectiveId) -> Option<Handle<Image>> {
+        match character {
+            DetectiveId::Richey => self.richey.clone(),
+            DetectiveId::LuckerAndRon => self.lucker_ron.clone(),
+            DetectiveId::Pinckney => self.pinckney.clone(),
+            DetectiveId::Zombie => self.zombie.clone(),
+        }
+    }
+
     pub fn for_speaker(&self, speaker: &str) -> Option<Handle<Image>> {
         if speaker.contains("CLARA") {
             self.clara.clone()
         } else if speaker.contains("MILLER") {
             self.miller.clone()
+        } else if speaker.contains("ECHO IN RON") {
+            self.lucker_ron.clone()
         } else {
             None
         }
@@ -55,6 +80,12 @@ struct HudStatsText;
 
 #[derive(Component)]
 struct BottomPromptText;
+
+#[derive(Component)]
+struct OpenCharBarBtn;
+
+#[derive(Component)]
+struct OpenCharBarBtnText;
 
 #[derive(Component)]
 struct OpenCoopBarBtn;
@@ -76,6 +107,22 @@ struct MpStatusText;
 
 #[derive(Component)]
 struct MpInputText;
+
+#[derive(Component)]
+struct CharSelectModalRoot;
+
+#[derive(Component)]
+struct CharSelectCard {
+    character: DetectiveId,
+}
+
+#[derive(Component)]
+struct CharSelectCardStatusText {
+    character: DetectiveId,
+}
+
+#[derive(Component)]
+struct CloseCharSelectBtn;
 
 #[derive(Component, Clone, Copy)]
 enum MpButtonAction {
@@ -108,7 +155,7 @@ struct ChoiceButtonIndex(usize);
 #[derive(Default)]
 struct UiSyncTracker {
     last_generation: u64,
-    last_archetype: String,
+    last_character: Option<DetectiveId>,
 }
 
 pub struct NoirUiPlugin;
@@ -116,18 +163,21 @@ pub struct NoirUiPlugin;
 impl Plugin for NoirUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LedgerModalOpen>()
+            .init_resource::<CharacterSelectModalOpen>()
             .init_resource::<MultiplayerModalOpen>()
             .init_resource::<PortraitAssets>()
             .add_systems(
                 Startup,
-                (load_portrait_assets, setup_ui_camera, build_split_screen_ui),
+                (load_portrait_assets, setup_ui_camera, build_split_screen_ui).chain(),
             )
             .add_systems(
                 Update,
                 (
                     handle_hud_shortcuts_and_coop_typing,
+                    handle_char_select_interactions,
                     handle_mp_buttons,
                     update_minimal_hud,
+                    update_char_select_modal_ui,
                     update_mp_modal_ui,
                     update_pulse_monitor_widget,
                     sync_current_exchange_and_choices,
@@ -143,7 +193,10 @@ fn load_portrait_assets(
     asset_server: Option<Res<AssetServer>>,
 ) {
     if let Some(server) = asset_server {
-        portraits.vale = Some(server.load("portraits/vale_portrait.png"));
+        portraits.richey = Some(server.load(DetectiveId::Richey.portrait_path()));
+        portraits.lucker_ron = Some(server.load(DetectiveId::LuckerAndRon.portrait_path()));
+        portraits.pinckney = Some(server.load(DetectiveId::Pinckney.portrait_path()));
+        portraits.zombie = Some(server.load(DetectiveId::Zombie.portrait_path()));
         portraits.clara = Some(server.load("portraits/clara_portrait.png"));
         portraits.miller = Some(server.load("portraits/miller_portrait.png"));
     }
@@ -162,7 +215,7 @@ fn setup_ui_camera(mut commands: Commands) {
     ));
 }
 
-fn build_split_screen_ui(mut commands: Commands) {
+fn build_split_screen_ui(mut commands: Commands, portraits: Res<PortraitAssets>) {
     let left_pct = SCENE_WIDTH_FRACTION * 100.0;
     let right_pct = 100.0 - left_pct;
 
@@ -190,16 +243,16 @@ fn build_split_screen_ui(mut commands: Commands) {
                         padding: UiRect::axes(Val::Px(14.0), Val::Px(8.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.04, 0.04, 0.07, 0.82)),
+                    BackgroundColor(Color::srgba(0.04, 0.04, 0.07, 0.85)),
                 ))
                 .with_children(|top| {
                     top.spawn((
                         Text::new(""),
                         TextFont {
-                            font_size: 12.5,
+                            font_size: 12.2,
                             ..default()
                         },
-                        TextColor(Color::srgb(0.82, 0.84, 0.90)),
+                        TextColor(Color::srgb(0.84, 0.86, 0.92)),
                         HudStatsText,
                     ));
                 });
@@ -294,7 +347,6 @@ fn build_split_screen_ui(mut commands: Commands) {
                             MpStatusText,
                         ));
 
-                        // Host row
                         mp.spawn(Node {
                             column_gap: Val::Px(8.0),
                             flex_wrap: FlexWrap::Wrap,
@@ -306,7 +358,6 @@ fn build_split_screen_ui(mut commands: Commands) {
                             spawn_mp_btn(hrow, "Disconnect", MpButtonAction::Disconnect);
                         });
 
-                        // Join input box
                         mp.spawn((
                             Node {
                                 width: Val::Percent(100.0),
@@ -329,7 +380,6 @@ fn build_split_screen_ui(mut commands: Commands) {
                             ));
                         });
 
-                        // Join buttons row
                         mp.spawn(Node {
                             column_gap: Val::Px(8.0),
                             flex_wrap: FlexWrap::Wrap,
@@ -337,54 +387,89 @@ fn build_split_screen_ui(mut commands: Commands) {
                         })
                         .with_children(|jrow| {
                             spawn_mp_btn(jrow, "[Enter] Join by Code", MpButtonAction::JoinTyped);
-                            spawn_mp_btn(jrow, "Quick Join Same PC (LOCAL)", MpButtonAction::JoinLocal);
+                            spawn_mp_btn(
+                                jrow,
+                                "Quick Join Same PC (LOCAL)",
+                                MpButtonAction::JoinLocal,
+                            );
                         });
                     });
                 });
 
-                // Minimal 1-line bottom prompt + Co-op button
+                // Minimal 1-line bottom prompt + Character Select & Co-op buttons
                 left.spawn((
                     Node {
                         width: Val::Percent(100.0),
                         justify_content: JustifyContent::SpaceBetween,
                         align_items: AlignItems::Center,
                         padding: UiRect::axes(Val::Px(14.0), Val::Px(6.0)),
+                        column_gap: Val::Px(8.0),
                         ..default()
                     },
-                    BackgroundColor(Color::srgba(0.04, 0.04, 0.07, 0.82)),
+                    BackgroundColor(Color::srgba(0.04, 0.04, 0.07, 0.85)),
                 ))
                 .with_children(|bot| {
                     bot.spawn((
                         Text::new(""),
                         TextFont {
-                            font_size: 12.5,
+                            font_size: 12.2,
                             ..default()
                         },
                         TextColor(Color::srgb(0.84, 0.82, 0.78)),
                         BottomPromptText,
                     ));
 
-                    bot.spawn((
-                        Button,
-                        Node {
-                            padding: UiRect::axes(Val::Px(9.0), Val::Px(4.0)),
-                            border: UiRect::all(Val::Px(1.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.12, 0.16, 0.22)),
-                        BorderColor(Color::srgb(0.42, 0.58, 0.78)),
-                        OpenCoopBarBtn,
-                    ))
-                    .with_children(|b| {
-                        b.spawn((
-                            Text::new("[M] Co-op"),
-                            TextFont {
-                                font_size: 12.0,
+                    bot.spawn(Node {
+                        column_gap: Val::Px(6.0),
+                        align_items: AlignItems::Center,
+                        ..default()
+                    })
+                    .with_children(|btns| {
+                        btns.spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::axes(Val::Px(9.0), Val::Px(4.0)),
+                                border: UiRect::all(Val::Px(1.0)),
                                 ..default()
                             },
-                            TextColor(Color::srgb(0.82, 0.90, 0.98)),
-                            OpenCoopBarBtnText,
-                        ));
+                            BackgroundColor(Color::srgb(0.18, 0.13, 0.20)),
+                            BorderColor(Color::srgb(0.76, 0.56, 0.36)),
+                            OpenCharBarBtn,
+                        ))
+                        .with_children(|b| {
+                            b.spawn((
+                                Text::new("[C] Detective"),
+                                TextFont {
+                                    font_size: 11.8,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.96, 0.86, 0.64)),
+                                OpenCharBarBtnText,
+                            ));
+                        });
+
+                        btns.spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::axes(Val::Px(9.0), Val::Px(4.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.12, 0.16, 0.22)),
+                            BorderColor(Color::srgb(0.42, 0.58, 0.78)),
+                            OpenCoopBarBtn,
+                        ))
+                        .with_children(|b| {
+                            b.spawn((
+                                Text::new("[M] Co-op"),
+                                TextFont {
+                                    font_size: 11.8,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.82, 0.90, 0.98)),
+                                OpenCoopBarBtnText,
+                            ));
+                        });
                     });
                 });
             });
@@ -476,6 +561,265 @@ fn build_split_screen_ui(mut commands: Commands) {
                     ChoicesContainer,
                 ));
             });
+
+            // ================= FULL-SCREEN CHARACTER SELECTION OVERLAY =================
+            build_character_select_overlay(root, &portraits);
+        });
+}
+
+fn build_character_select_overlay(root: &mut ChildBuilder, portraits: &PortraitAssets) {
+    root.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(0.0),
+            top: Val::Px(0.0),
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            padding: UiRect::all(Val::Px(24.0)),
+            display: Display::Flex,
+            ..default()
+        },
+        BackgroundColor(Color::srgba(0.03, 0.03, 0.05, 0.92)),
+        ZIndex(30),
+        CharSelectModalRoot,
+    ))
+    .with_children(|backdrop| {
+        backdrop
+            .spawn((
+                Node {
+                    width: Val::Percent(92.0),
+                    max_width: Val::Px(1120.0),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(22.0)),
+                    row_gap: Val::Px(14.0),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.07, 0.07, 0.10, 0.99)),
+                BorderColor(Color::srgb(0.76, 0.60, 0.36)),
+            ))
+            .with_children(|panel| {
+                // Header row
+                panel
+                    .spawn(Node {
+                        width: Val::Percent(100.0),
+                        justify_content: JustifyContent::SpaceBetween,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    })
+                    .with_children(|hdr| {
+                        hdr.spawn(Node {
+                            flex_direction: FlexDirection::Column,
+                            row_gap: Val::Px(3.0),
+                            ..default()
+                        })
+                        .with_children(|titles| {
+                            titles.spawn((
+                                Text::new("SELECT YOUR SUPERNATURAL DETECTIVE"),
+                                TextFont {
+                                    font_size: 18.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.96, 0.84, 0.54)),
+                            ));
+                            titles.spawn((
+                                Text::new(
+                                    "Click a detective (or press 1–4 / F1–F4) to take the case. Press [C] anytime to switch.",
+                                ),
+                                TextFont {
+                                    font_size: 12.5,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.74, 0.76, 0.84)),
+                            ));
+                        });
+
+                        hdr.spawn((
+                            Button,
+                            Node {
+                                padding: UiRect::axes(Val::Px(14.0), Val::Px(8.0)),
+                                border: UiRect::all(Val::Px(1.5)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.18, 0.24, 0.18)),
+                            BorderColor(Color::srgb(0.52, 0.84, 0.62)),
+                            CloseCharSelectBtn,
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text::new("[Enter / Esc] Begin Investigation"),
+                                TextFont {
+                                    font_size: 13.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.88, 0.98, 0.90)),
+                            ));
+                        });
+                    });
+
+                // 2x2 Grid of Detective Cards (2 rows of 2 cards)
+                let rows = [
+                    [DetectiveId::Richey, DetectiveId::LuckerAndRon],
+                    [DetectiveId::Pinckney, DetectiveId::Zombie],
+                ];
+
+                for pair in rows {
+                    panel
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(14.0),
+                            ..default()
+                        })
+                        .with_children(|row| {
+                            for (offset, det) in pair.iter().copied().enumerate() {
+                                let num = match det {
+                                    DetectiveId::Richey => 1,
+                                    DetectiveId::LuckerAndRon => 2,
+                                    DetectiveId::Pinckney => 3,
+                                    DetectiveId::Zombie => 4,
+                                };
+                                let _ = offset;
+                                spawn_detective_select_card(row, det, num, portraits);
+                            }
+                        });
+                }
+            });
+    });
+}
+
+fn spawn_detective_select_card(
+    parent: &mut ChildBuilder,
+    det: DetectiveId,
+    num: usize,
+    portraits: &PortraitAssets,
+) {
+    let accent = det.accent_color();
+    let (ded, san, noc, pul) = det.base_stats();
+
+    parent
+        .spawn((
+            Button,
+            Node {
+                width: Val::Percent(50.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(14.0)),
+                row_gap: Val::Px(9.0),
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.10, 0.10, 0.14)),
+            BorderColor(accent.with_alpha(0.55)),
+            CharSelectCard { character: det },
+        ))
+        .with_children(|card| {
+            // Top Row: Portrait + Name + Species Badge
+            card.spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(12.0),
+                align_items: AlignItems::Center,
+                ..default()
+            })
+            .with_children(|top| {
+                if let Some(port) = portraits.for_detective(det) {
+                    top.spawn((
+                        ImageNode::new(port),
+                        Node {
+                            width: Val::Px(78.0),
+                            height: Val::Px(78.0),
+                            flex_shrink: 0.0,
+                            border: UiRect::all(Val::Px(1.5)),
+                            ..default()
+                        },
+                        BorderColor(accent),
+                    ));
+                }
+
+                top.spawn(Node {
+                    flex_grow: 1.0,
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(4.0),
+                    ..default()
+                })
+                .with_children(|info| {
+                    info.spawn((
+                        Text::new(format!(
+                            "[{num} / {}]  {}",
+                            det.hotkey_label(),
+                            det.display_name()
+                        )),
+                        TextFont {
+                            font_size: 16.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.96, 0.94, 0.90)),
+                    ));
+                    info.spawn((
+                        Text::new(det.species_badge()),
+                        TextFont {
+                            font_size: 11.5,
+                            ..default()
+                        },
+                        TextColor(accent),
+                    ));
+                    info.spawn((
+                        Text::new(det.bio()),
+                        TextFont {
+                            font_size: 12.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.78, 0.80, 0.86)),
+                    ));
+                });
+            });
+
+            // Stats Strip
+            card.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    padding: UiRect::axes(Val::Px(10.0), Val::Px(5.0)),
+                    justify_content: JustifyContent::SpaceBetween,
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.06, 0.06, 0.09)),
+            ))
+            .with_children(|st| {
+                st.spawn((
+                    Text::new(format!(
+                        "DED {ded}   •   SAN {san}   •   NOC {noc}   •   PUL {pul}   |   Sense: {}",
+                        det.sense_name()
+                    )),
+                    TextFont {
+                        font_size: 11.8,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.88, 0.86, 0.76)),
+                ));
+            });
+
+            // Special Abilities Summary
+            card.spawn((
+                Text::new(det.abilities_summary()),
+                TextFont {
+                    font_size: 11.8,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.84, 0.86, 0.92)),
+            ));
+
+            // Footer Selection Status
+            card.spawn((
+                Text::new("Click to Select & Investigate"),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(accent),
+                CharSelectCardStatusText { character: det },
+            ));
         });
 }
 
@@ -504,21 +848,54 @@ fn spawn_mp_btn(parent: &mut ChildBuilder, label: &str, action: MpButtonAction) 
         });
 }
 
-#[allow(clippy::too_many_arguments)]
+fn apply_selected_character(sheet: &mut DetectiveSheet, chosen: DetectiveId) {
+    let current_strain = sheet.hunger;
+    *sheet = DetectiveSheet::from_character(chosen);
+    sheet.hunger = current_strain;
+}
+
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn handle_hud_shortcuts_and_coop_typing(
     keys: Res<ButtonInput<KeyCode>>,
     mut key_events: EventReader<KeyboardInput>,
     mut ledger_open: ResMut<LedgerModalOpen>,
+    mut char_open: ResMut<CharacterSelectModalOpen>,
     mut mp_open: ResMut<MultiplayerModalOpen>,
     mut sheet: ResMut<DetectiveSheet>,
     mut nar_state: ResMut<NarrativeState>,
     mut join_writer: EventWriter<JoinGameEvent>,
-    coop_bar_btn: Query<&Interaction, (Changed<Interaction>, With<OpenCoopBarBtn>)>,
+    char_bar_btn: Query<
+        &Interaction,
+        (
+            Changed<Interaction>,
+            With<OpenCharBarBtn>,
+            Without<OpenCoopBarBtn>,
+        ),
+    >,
+    coop_bar_btn: Query<
+        &Interaction,
+        (
+            Changed<Interaction>,
+            With<OpenCoopBarBtn>,
+            Without<OpenCharBarBtn>,
+        ),
+    >,
 ) {
+    for inter in &char_bar_btn {
+        if *inter == Interaction::Pressed {
+            char_open.0 = !char_open.0;
+            if char_open.0 {
+                mp_open.open = false;
+                ledger_open.0 = false;
+            }
+        }
+    }
+
     for inter in &coop_bar_btn {
         if *inter == Interaction::Pressed {
             mp_open.open = !mp_open.open;
             if mp_open.open {
+                char_open.0 = false;
                 ledger_open.0 = false;
             }
         }
@@ -571,8 +948,45 @@ fn handle_hud_shortcuts_and_coop_typing(
 
     key_events.clear();
 
+    if char_open.0 {
+        if keys.just_pressed(KeyCode::Escape)
+            || keys.just_pressed(KeyCode::Enter)
+            || keys.just_pressed(KeyCode::KeyC)
+        {
+            char_open.0 = false;
+            return;
+        }
+        let modal_pick = if keys.just_pressed(KeyCode::Digit1) || keys.just_pressed(KeyCode::F1) {
+            Some(DetectiveId::Richey)
+        } else if keys.just_pressed(KeyCode::Digit2) || keys.just_pressed(KeyCode::F2) {
+            Some(DetectiveId::LuckerAndRon)
+        } else if keys.just_pressed(KeyCode::Digit3) || keys.just_pressed(KeyCode::F3) {
+            Some(DetectiveId::Pinckney)
+        } else if keys.just_pressed(KeyCode::Digit4) || keys.just_pressed(KeyCode::F4) {
+            Some(DetectiveId::Zombie)
+        } else {
+            None
+        };
+        if let Some(chosen) = modal_pick {
+            apply_selected_character(&mut sheet, chosen);
+            nar_state.generation += 1;
+            char_open.0 = false;
+            return;
+        }
+    }
+
+    if keys.just_pressed(KeyCode::KeyC) {
+        char_open.0 = !char_open.0;
+        if char_open.0 {
+            ledger_open.0 = false;
+            mp_open.open = false;
+        }
+        return;
+    }
+
     if keys.just_pressed(KeyCode::KeyM) {
         mp_open.open = true;
+        char_open.0 = false;
         ledger_open.0 = false;
         return;
     }
@@ -581,21 +995,107 @@ fn handle_hud_shortcuts_and_coop_typing(
         ledger_open.0 = !ledger_open.0;
     }
 
-    let chosen_arch = if keys.just_pressed(KeyCode::F1) {
-        Some(Archetype::ForensicHound)
+    let chosen_fn = if keys.just_pressed(KeyCode::F1) {
+        Some(DetectiveId::Richey)
     } else if keys.just_pressed(KeyCode::F2) {
-        Some(Archetype::BloodMystic)
+        Some(DetectiveId::LuckerAndRon)
     } else if keys.just_pressed(KeyCode::F3) {
-        Some(Archetype::MidnightEnforcer)
+        Some(DetectiveId::Pinckney)
+    } else if keys.just_pressed(KeyCode::F4) {
+        Some(DetectiveId::Zombie)
     } else {
         None
     };
 
-    if let Some(arch) = chosen_arch {
-        let current_hunger = sheet.hunger;
-        *sheet = DetectiveSheet::from_archetype(arch);
-        sheet.hunger = current_hunger;
+    if let Some(chosen) = chosen_fn {
+        apply_selected_character(&mut sheet, chosen);
         nar_state.generation += 1;
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn handle_char_select_interactions(
+    mut card_q: Query<
+        (&Interaction, &CharSelectCard, &mut BackgroundColor),
+        (Changed<Interaction>, Without<CloseCharSelectBtn>),
+    >,
+    mut close_q: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<CloseCharSelectBtn>, Without<CharSelectCard>),
+    >,
+    mut char_open: ResMut<CharacterSelectModalOpen>,
+    mut sheet: ResMut<DetectiveSheet>,
+    mut nar_state: ResMut<NarrativeState>,
+) {
+    for (inter, card, mut bg) in &mut card_q {
+        match *inter {
+            Interaction::Pressed => {
+                bg.0 = Color::srgb(0.20, 0.18, 0.28);
+                apply_selected_character(&mut sheet, card.character);
+                nar_state.generation += 1;
+                char_open.0 = false;
+            }
+            Interaction::Hovered => {
+                bg.0 = Color::srgb(0.15, 0.15, 0.21);
+            }
+            Interaction::None => {
+                bg.0 = Color::srgb(0.10, 0.10, 0.14);
+            }
+        }
+    }
+
+    for (inter, mut bg) in &mut close_q {
+        match *inter {
+            Interaction::Pressed => {
+                bg.0 = Color::srgb(0.26, 0.38, 0.26);
+                char_open.0 = false;
+            }
+            Interaction::Hovered => {
+                bg.0 = Color::srgb(0.22, 0.30, 0.22);
+            }
+            Interaction::None => {
+                bg.0 = Color::srgb(0.18, 0.24, 0.18);
+            }
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn update_char_select_modal_ui(
+    char_open: Res<CharacterSelectModalOpen>,
+    sheet: Res<DetectiveSheet>,
+    mut modal_q: Query<&mut Node, With<CharSelectModalRoot>>,
+    mut cards_q: Query<(&CharSelectCard, &mut BorderColor)>,
+    mut status_q: Query<(&CharSelectCardStatusText, &mut Text), Without<OpenCharBarBtnText>>,
+    mut bar_btn_q: Query<&mut Text, (With<OpenCharBarBtnText>, Without<CharSelectCardStatusText>)>,
+) {
+    if let Ok(mut node) = modal_q.get_single_mut() {
+        node.display = if char_open.0 {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
+    for (card, mut border) in &mut cards_q {
+        let accent = card.character.accent_color();
+        border.0 = if card.character == sheet.character {
+            accent
+        } else {
+            accent.with_alpha(0.35)
+        };
+    }
+
+    for (st, mut txt) in &mut status_q {
+        txt.0 = if st.character == sheet.character {
+            "★ ACTIVE DETECTIVE — Click or Press [Enter] to Play".to_string()
+        } else {
+            "Click to Select & Investigate".to_string()
+        };
+    }
+
+    if let Ok(mut btxt) = bar_btn_q.get_single_mut() {
+        btxt.0 = format!("[C] {}", sheet.character.display_name());
     }
 }
 
@@ -691,13 +1191,35 @@ fn read_windows_clipboard() -> Option<String> {
     None
 }
 
+#[allow(clippy::type_complexity)]
 fn update_mp_modal_ui(
     mp_open: Res<MultiplayerModalOpen>,
     session: Res<NetSession>,
     mut modal_q: Query<&mut Node, With<MpModalRoot>>,
-    mut status_q: Query<&mut Text, (With<MpStatusText>, Without<MpInputText>, Without<OpenCoopBarBtnText>)>,
-    mut input_q: Query<&mut Text, (With<MpInputText>, Without<MpStatusText>, Without<OpenCoopBarBtnText>)>,
-    mut bar_btn_q: Query<&mut Text, (With<OpenCoopBarBtnText>, Without<MpStatusText>, Without<MpInputText>)>,
+    mut status_q: Query<
+        &mut Text,
+        (
+            With<MpStatusText>,
+            Without<MpInputText>,
+            Without<OpenCoopBarBtnText>,
+        ),
+    >,
+    mut input_q: Query<
+        &mut Text,
+        (
+            With<MpInputText>,
+            Without<MpStatusText>,
+            Without<OpenCoopBarBtnText>,
+        ),
+    >,
+    mut bar_btn_q: Query<
+        &mut Text,
+        (
+            With<OpenCoopBarBtnText>,
+            Without<MpStatusText>,
+            Without<MpInputText>,
+        ),
+    >,
 ) {
     if let Ok(mut node) = modal_q.get_single_mut() {
         node.display = if mp_open.open {
@@ -722,7 +1244,11 @@ fn update_mp_modal_ui(
     if let Ok(mut btxt) = bar_btn_q.get_single_mut() {
         btxt.0 = match session.role {
             NetRole::Offline => "[M] Co-op".to_string(),
-            NetRole::Hosting => format!("[M] Code: {} ({})", session.invite_code, session.peers.len() + 1),
+            NetRole::Hosting => format!(
+                "[M] Code: {} ({})",
+                session.invite_code,
+                session.peers.len() + 1
+            ),
             NetRole::Client => format!("[M] Co-op ({})", session.peers.len() + 1),
         };
     }
@@ -745,19 +1271,25 @@ fn update_minimal_hud(
         for i in 0..5 {
             bar.push(if i < pips { '◆' } else { '◇' });
         }
-        let sight_tag = if blood_sight.active { "  •  BLOOD SIGHT ON" } else { "" };
+        let sight_tag = if blood_sight.active {
+            format!("  •  {} ON", sheet.character.sense_name().to_uppercase())
+        } else {
+            String::new()
+        };
         let loc_title = if active_scene.current_title.is_empty() {
             library.title.as_str()
         } else {
             active_scene.current_title.as_str()
         };
         txt.0 = format!(
-            "{}  |  DED {}  SAN {}  NOC {}  PUL {}  |  HUNGER {}{}",
+            "{}  |  {}  |  DED {}  SAN {}  NOC {}  PUL {}  |  {} {}{}",
+            sheet.character.display_name(),
             loc_title,
             sheet.effective_stat(Faculty::Deduction),
             sheet.effective_stat(Faculty::Sanguine),
             sheet.effective_stat(Faculty::Nocturne),
             sheet.effective_stat(Faculty::Pulse),
+            sheet.character.strain_label(),
             bar,
             sight_tag,
         );
@@ -768,7 +1300,8 @@ fn update_minimal_hud(
             txt.0 = format!("Click / [E] {lbl}");
         } else {
             txt.0 = format!(
-                "Click to Walk & Inspect   •   Tab: Blood Sight   •   L: Clues ({}/{})",
+                "Click to Walk  •  Tab: {}  •  L: Clues ({}/{})",
+                sheet.character.sense_name(),
                 ledger.discovered.len(),
                 library.clue_order.len()
             );
@@ -779,10 +1312,14 @@ fn update_minimal_hud(
 #[allow(clippy::type_complexity)]
 fn update_pulse_monitor_widget(
     nar_state: Res<NarrativeState>,
+    sheet: Res<DetectiveSheet>,
     heartbeats: Query<&SuspectHeartbeat>,
     mut card_q: Query<&mut Node, (With<PulseMonitorCard>, Without<PulseMonitorBarFill>)>,
     mut text_q: Query<(&mut Text, &mut TextColor), With<PulseMonitorText>>,
-    mut bar_q: Query<(&mut Node, &mut BackgroundColor), (With<PulseMonitorBarFill>, Without<PulseMonitorCard>)>,
+    mut bar_q: Query<
+        (&mut Node, &mut BackgroundColor),
+        (With<PulseMonitorBarFill>, Without<PulseMonitorCard>),
+    >,
 ) {
     let active_hb = nar_state
         .active_suspect_id
@@ -797,16 +1334,23 @@ fn update_pulse_monitor_widget(
         card_node.display = Display::Flex;
         let spike = hb.is_lie_spike || hb.current_bpm >= 120.0;
         let accent = if spike {
-            Color::srgb(1.0, 0.26, 0.34)
+            sheet.character.accent_color()
         } else {
             Color::srgb(0.48, 0.86, 0.72)
         };
-        let state_word = if spike { "LIE / PANIC SPIKE" } else { "STEADY" };
+
+        let (prefix, spike_word) = match sheet.character {
+            DetectiveId::Richey => ("♥ Blood Pulse", "LIE / PANIC SPIKE"),
+            DetectiveId::LuckerAndRon => ("◈ Spirit Aura", "GUILT TREMOR"),
+            DetectiveId::Pinckney => ("◆ Scent Spoor", "FEAR-SWEAT SPIKE"),
+            DetectiveId::Zombie => ("❖ Mortis Read", "NERVE PANIC"),
+        };
+        let state_word = if spike { spike_word } else { "STEADY" };
 
         if let Ok((mut t, mut c)) = text_q.get_single_mut() {
             t.0 = format!(
-                "♥ {} — {:.0} BPM (base {:.0}) [{}]",
-                hb.display_name, hb.current_bpm, hb.resting_bpm, state_word
+                "{prefix}: {} — {:.0} BPM (base {:.0}) [{state_word}]",
+                hb.display_name, hb.current_bpm, hb.resting_bpm
             );
             c.0 = accent;
         }
@@ -830,12 +1374,14 @@ fn sync_current_exchange_and_choices(
     choices_q: Query<(Entity, Option<&Children>), (With<ChoicesContainer>, Without<ExchangeStage>)>,
     mut tracker: Local<UiSyncTracker>,
 ) {
-    let arch_changed = tracker.last_archetype != sheet.archetype_title;
-    if nar_state.generation == tracker.last_generation && !arch_changed {
+    let char_changed = tracker.last_character != Some(sheet.character);
+    if nar_state.generation == tracker.last_generation && !char_changed {
         return;
     }
     tracker.last_generation = nar_state.generation;
-    tracker.last_archetype = sheet.archetype_title.clone();
+    tracker.last_character = Some(sheet.character);
+
+    let char_accent = sheet.character.accent_color();
 
     if let Ok((stage_entity, children)) = stage_q.get_single() {
         if let Some(children) = children {
@@ -848,12 +1394,15 @@ fn sync_current_exchange_and_choices(
         commands.entity(stage_entity).with_children(|stage| {
             if nar_state.current_node_id.is_empty() {
                 stage.spawn((
-                    Text::new("Click anywhere to walk, or click a suspect / clue to inspect."),
+                    Text::new(format!(
+                        "{} on the scene — click anywhere to walk, or click a suspect / clue to inspect.",
+                        sheet.character.display_name()
+                    )),
                     TextFont {
                         font_size: 14.0,
                         ..default()
                     },
-                    TextColor(Color::srgb(0.54, 0.54, 0.62)),
+                    TextColor(Color::srgb(0.62, 0.64, 0.72)),
                 ));
                 return;
             }
@@ -871,12 +1420,12 @@ fn sync_current_exchange_and_choices(
                             ..default()
                         },
                         BackgroundColor(Color::srgba(0.10, 0.13, 0.18, 0.90)),
-                        BorderColor(Color::srgb(0.46, 0.66, 0.86)),
+                        BorderColor(char_accent),
                     ))
                     .with_children(|me_row| {
-                        if let Some(port) = &portraits.vale {
+                        if let Some(port) = portraits.for_detective(sheet.character) {
                             me_row.spawn((
-                                ImageNode::new(port.clone()),
+                                ImageNode::new(port),
                                 Node {
                                     width: Val::Px(64.0),
                                     height: Val::Px(64.0),
@@ -884,7 +1433,7 @@ fn sync_current_exchange_and_choices(
                                     border: UiRect::all(Val::Px(1.0)),
                                     ..default()
                                 },
-                                BorderColor(Color::srgb(0.42, 0.58, 0.78)),
+                                BorderColor(char_accent),
                             ));
                         }
 
@@ -897,12 +1446,12 @@ fn sync_current_exchange_and_choices(
                             })
                             .with_children(|me_box| {
                                 me_box.spawn((
-                                    Text::new("YOU — HARLAN VALE"),
+                                    Text::new(sheet.character.dialogue_you_header()),
                                     TextFont {
                                         font_size: 11.5,
                                         ..default()
                                     },
-                                    TextColor(Color::srgb(0.56, 0.76, 0.94)),
+                                    TextColor(char_accent),
                                 ));
                                 me_box.spawn((
                                     Text::new(my_line.clone()),
@@ -1024,6 +1573,8 @@ fn sync_current_exchange_and_choices(
 
                 let text_color = if resolved.locked_check_failed {
                     Color::srgb(0.48, 0.45, 0.50)
+                } else if let Some(req_char) = resolved.raw.requires_character {
+                    req_char.accent_color()
                 } else if let Some(sc) = &resolved.raw.skill_check {
                     sc.faculty.color()
                 } else {
@@ -1044,7 +1595,7 @@ fn sync_current_exchange_and_choices(
                 ))
                 .with_children(|btn| {
                     btn.spawn((
-                        Text::new(format!("{prefix}{}", resolved.raw.label)),
+                        Text::new(format!("{prefix}{}", resolved.formatted_label)),
                         TextFont {
                             font_size: 13.5,
                             ..default()
@@ -1058,12 +1609,16 @@ fn sync_current_exchange_and_choices(
 }
 
 fn handle_choice_button_clicks(
+    char_open: Res<CharacterSelectModalOpen>,
     mut interactions: Query<
         (&Interaction, &ChoiceButtonIndex, &mut BackgroundColor),
         Changed<Interaction>,
     >,
     mut writer: EventWriter<SelectChoiceEvent>,
 ) {
+    if char_open.0 {
+        return;
+    }
     for (inter, idx, mut bg) in &mut interactions {
         match *inter {
             Interaction::Pressed => {

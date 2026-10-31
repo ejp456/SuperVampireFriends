@@ -10,13 +10,13 @@ CaseData(
         ),
         ClueDef(
             id: "clue_dragged_body",
-            title: "Crimson Drag Trail",
-            summary: "Blood Sight shows heel smears leading from the north stage curtain.",
+            title: "Hidden Drag Trail",
+            summary: "Supernatural sight shows heel smears leading from the north stage curtain.",
         ),
         ClueDef(
             id: "clue_perfume_and_brass",
             title: "Jasmine & Police Oil",
-            summary: "Vance's collar smells of jasmine perfume and precinct gun oil.",
+            summary: "Vance's collar carries Clara's jasmine perfume and precinct gun oil.",
         ),
         ClueDef(
             id: "clue_curtain_kill_site",
@@ -54,7 +54,7 @@ CaseData(
             id: "intro_arrival",
             speaker: "SGT. FRANK MILLER",
             active_suspect_id: Some("miller"),
-            text: "\"Stickup gone bad, Vale. Sign the report so we can both get out of the rain before dawn.\"",
+            text: "\"Stickup gone bad, {detective}. Sign the report so we can both get out of the rain before dawn.\"",
             grants_clues: [],
             pulse_trigger: Some(PulseTrigger(
                 npc_id: "miller",
@@ -64,10 +64,31 @@ CaseData(
             hunger_delta: 0.0,
             passive_voices: [
                 PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(LuckerAndRon),
+                    requires_blood_sight: false,
+                    text: "Det. Lucker (Ghost): \"Don't sign a thing, Ron! Press [Tab] for Phantom Sight—this room reeks of a cover-up.\"",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Pinckney),
+                    requires_blood_sight: false,
+                    text: "Cordite, gin, and cold sweat under Miller's badge. Press [Tab] to prowl with Lupine Scent.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Zombie),
+                    requires_blood_sight: false,
+                    text: "A fresh chest wound bleeds ten times more than that rug shows. Press [Tab] for Mortis Sight.",
+                ),
+                PassiveVoice(
                     faculty: Some(Sanguine),
                     min_stat: 2,
                     requires_blood_sight: false,
-                    text: "Fresh gin and scrubbed blood in the air. Press [Tab] to use Blood Sight.",
+                    text: "Fresh gin and scrubbed blood in the air. Press [Tab] to awaken {sense}.",
                 ),
             ],
             choices: [
@@ -89,6 +110,20 @@ CaseData(
             hunger_delta: 0.0,
             passive_voices: [
                 PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(LuckerAndRon),
+                    requires_blood_sight: false,
+                    text: "Det. Lucker (Ghost): \"His spirit's still clinging to the vest, Ron. Let me channel him!\"",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Zombie),
+                    requires_blood_sight: false,
+                    text: "Post-mortem lividity pooled in his shoulders—somebody dragged him after his heart quit.",
+                ),
+                PassiveVoice(
                     faculty: Some(Deduction),
                     min_stat: 2,
                     requires_blood_sight: false,
@@ -97,13 +132,38 @@ CaseData(
             ],
             choices: [
                 DialogueChoice(
-                    label: "[Blood Sight] Trace the glowing red smears by his heels.",
+                    label: "[{sense}] Trace the glowing trail by his heels.",
                     next_node: "inspect_corpse_blood_sight",
                     requires_blood_sight: true,
                     hide_if_clue: Some("clue_dragged_body"),
                 ),
                 DialogueChoice(
+                    label: "[Vampire Senses] Drink in the blood-iron & perfume notes on his collar.",
+                    next_node: "corpse_richey_vampire",
+                    requires_character: Some(Richey),
+                    hide_if_clue: Some("clue_perfume_and_brass"),
+                ),
+                DialogueChoice(
+                    label: "[Ghost Lucker — Séance] Channel Vance's lingering spirit through Ron's voice.",
+                    next_node: "corpse_lucker_seance",
+                    requires_character: Some(LuckerAndRon),
+                    hide_if_clue: Some("clue_perfume_and_brass"),
+                ),
+                DialogueChoice(
+                    label: "[Werewolf Scent] Lock onto the collar's perfume, gun oil & heel-blood spoor.",
+                    next_node: "corpse_pinckney_scent",
+                    requires_character: Some(Pinckney),
+                    hide_if_clue: Some("clue_perfume_and_brass"),
+                ),
+                DialogueChoice(
+                    label: "[Zombie Psychometry] Press stitched fingers to the wound to read tissue memory.",
+                    next_node: "corpse_zombie_psychometry",
+                    requires_character: Some(Zombie),
+                    hide_if_clue: Some("clue_perfume_and_brass"),
+                ),
+                DialogueChoice(
                     label: "Check the scent on his collar.",
+                    hide_if_clue: Some("clue_perfume_and_brass"),
                     skill_check: Some(SkillCheckSpec(
                         id: "chk_corpse_scent",
                         faculty: Sanguine,
@@ -124,7 +184,7 @@ CaseData(
             id: "inspect_corpse_blood_sight",
             speaker: "JULIAN VANCE (CORPSE)",
             active_suspect_id: None,
-            text: "Faint crimson heel-marks streak straight north toward the velvet stage curtain.",
+            text: "{sense} illuminates faint heel-smears streaking straight north toward the velvet stage curtain.",
             grants_clues: ["clue_dragged_body"],
             pulse_trigger: None,
             hunger_delta: 0.15,
@@ -132,6 +192,74 @@ CaseData(
             choices: [
                 DialogueChoice(
                     label: "Follow the trail north.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corpse_richey_vampire",
+            speaker: "JULIAN VANCE (CORPSE)",
+            active_suspect_id: None,
+            text: "Your fangs ache as you part the air over his collar: arterial iron cooled twenty minutes ago, layered with Clara's jasmine perfume and precinct-issue .38 gun oil.",
+            grants_clues: ["clue_perfume_and_brass"],
+            pulse_trigger: None,
+            hunger_delta: 0.35,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Steady your fangs and step back.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corpse_lucker_seance",
+            speaker: "JULIAN VANCE (ECHO IN RON)",
+            active_suspect_id: None,
+            text: "Frost rims Ron's breath as Ghost Lucker pulls Vance's final memory through: \"Jasmine behind the north curtain... brass shield... left-handed gun oil...\" Ron coughs and snaps upright.",
+            grants_clues: ["clue_dragged_body", "clue_perfume_and_brass"],
+            pulse_trigger: None,
+            hunger_delta: 0.40,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Ugh—warn me before you borrow my lungs, Lucker.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corpse_pinckney_scent",
+            speaker: "JULIAN VANCE (CORPSE)",
+            active_suspect_id: None,
+            text: "A low growl rumbles in your chest as every scent separates cleanly: Clara's jasmine perfume, police-issue .38 oil, and dragged boot-blood leading north to the velvet curtain.",
+            grants_clues: ["clue_dragged_body", "clue_perfume_and_brass"],
+            pulse_trigger: None,
+            hunger_delta: 0.35,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Follow the spoor.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corpse_zombie_psychometry",
+            speaker: "JULIAN VANCE (CORPSE)",
+            active_suspect_id: None,
+            text: "Cold necrotic recall flashes behind your stitched eyelids: Vance's heart stopped behind the north curtain amid jasmine perfume and police gun oil—then heavy boots dragged him onto the rug.",
+            grants_clues: ["clue_dragged_body", "clue_perfume_and_brass"],
+            pulse_trigger: None,
+            hunger_delta: 0.35,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Wipe your cold fingers and step back.",
                     next_node: "LEAVE_CONVERSATION",
                 ),
             ],
@@ -183,7 +311,7 @@ CaseData(
             passive_voices: [],
             choices: [
                 DialogueChoice(
-                    label: "Breathe the cool draft to steady your thirst. [-Hunger]",
+                    label: "Breathe the cool draft to steady your {strain}. [-{strain}]",
                     next_node: "table_steady_breath",
                 ),
                 DialogueChoice(
@@ -197,7 +325,7 @@ CaseData(
             id: "table_steady_breath",
             speaker: "OVERTURNED TABLE",
             active_suspect_id: None,
-            text: "The cold night air clears the crimson haze behind your eyes.",
+            text: "The cold harbor draft steadies your {sense} and eases your {strain}.",
             grants_clues: [],
             pulse_trigger: None,
             hunger_delta: -0.9,
@@ -215,7 +343,7 @@ CaseData(
             id: "inspect_curtain_echo",
             speaker: "VELVET CURTAIN",
             active_suspect_id: None,
-            text: "Blood Sight reveals a pooled crimson stain scrubbed with bar gin. Vance was shot right here.",
+            text: "{sense} reveals a pooled stain scrubbed hurriedly with bar gin. Vance was shot right here.",
             grants_clues: ["clue_curtain_kill_site"],
             pulse_trigger: None,
             hunger_delta: 0.1,
@@ -250,7 +378,7 @@ CaseData(
             passive_voices: [
                 PassiveVoice(
                     faculty: Some(Pulse),
-                    min_stat: 2,
+                    min_stat: 1,
                     requires_blood_sight: false,
                     text: "Sgt. Miller wears his holster on his left hip.",
                 ),
@@ -338,6 +466,27 @@ CaseData(
             hunger_delta: 0.0,
             passive_voices: [
                 PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(LuckerAndRon),
+                    requires_blood_sight: false,
+                    text: "Det. Lucker (Ghost): \"Look behind the bar, Ron—she's hiding gin-stained cuffs. Miller scared her stiff!\"",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Pinckney),
+                    requires_blood_sight: false,
+                    text: "Pure fear-adrenaline spiking off her skin—she's covering for a killer who threatened her.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Zombie),
+                    requires_blood_sight: false,
+                    text: "138 BPM against your silent dead ribs—she's terrified of the sergeant.",
+                ),
+                PassiveVoice(
                     faculty: Some(Pulse),
                     min_stat: 2,
                     requires_blood_sight: false,
@@ -352,7 +501,7 @@ CaseData(
             ],
             choices: [
                 DialogueChoice(
-                    label: "\"Your heart's racing, Clara. Who was really back here?\"",
+                    label: "\"Your pulse is racing, Clara. Who was really back here?\"",
                     skill_check: Some(SkillCheckSpec(
                         id: "chk_clara_pulse_press",
                         faculty: Pulse,
@@ -385,7 +534,7 @@ CaseData(
             id: "clara_guarded",
             speaker: "CLARA MOREAU",
             active_suspect_id: Some("clara"),
-            text: "\"Bring me real proof before asking me to cross a homicide sergeant, Mr. Vale.\"",
+            text: "\"Bring me real proof before asking me to cross a homicide sergeant, Detective {detective}.\"",
             grants_clues: [],
             pulse_trigger: Some(PulseTrigger(
                 npc_id: "clara",
@@ -428,7 +577,7 @@ CaseData(
             id: "talk_miller",
             speaker: "SGT. FRANK MILLER",
             active_suspect_id: Some("miller"),
-            text: "\"Open-and-shut robbery, Vale. Vance flashed too much gold.\"",
+            text: "\"Open-and-shut robbery, {detective}. Vance flashed too much gold.\"",
             grants_clues: [],
             pulse_trigger: Some(PulseTrigger(
                 npc_id: "miller",
@@ -476,7 +625,7 @@ CaseData(
             id: "miller_confrontation",
             speaker: "SGT. FRANK MILLER",
             active_suspect_id: Some("miller"),
-            text: "Miller's hand twitches toward his left holster. \"Careful, night-crawler — nobody misses a dead blackmailer.\"",
+            text: "Miller's hand twitches toward his left holster. \"Careful, {detective} — nobody misses a dead blackmailer.\"",
             grants_clues: [],
             pulse_trigger: Some(PulseTrigger(
                 npc_id: "miller",
@@ -509,7 +658,8 @@ CaseData(
                     )),
                 ),
                 DialogueChoice(
-                    label: "Let your eyes catch the red neon and terrify a confession out of him.",
+                    label: "[Vampire Dread] Bare your fangs in the red neon and terrify a confession out of him.",
+                    requires_character: Some(Richey),
                     skill_check: Some(SkillCheckSpec(
                         id: "chk_miller_dread",
                         faculty: Pulse,
@@ -518,6 +668,35 @@ CaseData(
                         failure_node: "ending_clean_justice",
                         hunger_cost: 0.5,
                     )),
+                ),
+                DialogueChoice(
+                    label: "[Ghost Possession] Let Det. Lucker's phantom voice boom from Ron's throat.",
+                    requires_character: Some(LuckerAndRon),
+                    skill_check: Some(SkillCheckSpec(
+                        id: "chk_miller_phantom",
+                        faculty: Nocturne,
+                        dc: 9,
+                        success_node: "ending_phantom_verdict",
+                        failure_node: "ending_clean_justice",
+                        hunger_cost: 0.5,
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Werewolf Snarl] Flash amber predator eyes and snarl inches from his gun hand.",
+                    requires_character: Some(Pinckney),
+                    skill_check: Some(SkillCheckSpec(
+                        id: "chk_miller_lupine",
+                        faculty: Pulse,
+                        dc: 9,
+                        success_node: "ending_lupine_verdict",
+                        failure_node: "ending_clean_justice",
+                        hunger_cost: 0.5,
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Zombie Revenant] Walk straight into his .38 barrel—bullets already failed once.",
+                    next_node: "ending_zombie_verdict",
+                    requires_character: Some(Zombie),
                 ),
             ],
         ),
@@ -547,7 +726,7 @@ CaseData(
             id: "ending_shadow_broker",
             speaker: "SGT. FRANK MILLER",
             active_suspect_id: Some("miller"),
-            text: "Miller swallows hard and takes his hand off his gun. \"Deal, Vale. The kid walks at 8 AM — and my files are yours.\" [CASE CLOSED]",
+            text: "Miller swallows hard and takes his hand off his gun. \"Deal, {detective}. The kid walks at 8 AM — and my files are yours.\" [CASE CLOSED]",
             grants_clues: [],
             pulse_trigger: Some(PulseTrigger(
                 npc_id: "miller",
@@ -568,7 +747,7 @@ CaseData(
             id: "ending_crimson_verdict",
             speaker: "SGT. FRANK MILLER",
             active_suspect_id: Some("miller"),
-            text: "\"God in heaven—your eyes...\" Miller stumbles back into the rain and scrawls a signed confession on his prowl car hood before you cuff him to the drainpipe. [CASE CLOSED]",
+            text: "\"God in heaven—your fangs...\" Miller stumbles back into the rain and scrawls a signed confession on his prowl car hood before you cuff him to the drainpipe. [CASE CLOSED]",
             grants_clues: [],
             pulse_trigger: Some(PulseTrigger(
                 npc_id: "miller",
@@ -580,6 +759,69 @@ CaseData(
             choices: [
                 DialogueChoice(
                     label: "Step back into the night.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_phantom_verdict",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "Spectral cyan mist pours from Ron's collar as Ghost Detective Lucker's voice thunders: \"DROP THE IRON, BADGE 419!\" Ashen-faced, Miller drops his .38 and signs a full confession. [CASE CLOSED]",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 138.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: -0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Nice teamwork, Lucker.\" Step back into the lounge.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_lupine_verdict",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "Your werewolf snarl rattles every gin bottle behind the bar. Miller's .38 clatters to the mahogany floor as he scrambles back and confesses to the murder of Julian Vance. [CASE CLOSED]",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 144.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: -0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Smooth down your collar and step back.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_zombie_verdict",
+            speaker: "SGT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "You press your stitched chest straight against his .38 muzzle without blinking: \"Three slugs didn't keep me in the morgue, Frank.\" Horrified, Miller drops his revolver and surrenders. [CASE CLOSED]",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 140.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: -0.4,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Adjust your fedora and step back.",
                     next_node: "LEAVE_CONVERSATION",
                 ),
             ],

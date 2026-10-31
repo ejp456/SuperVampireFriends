@@ -8,7 +8,8 @@ use crate::{
     narrative::{ClueLedger, EnterNodeEvent, NarrativeState},
     net::NetSession,
     senses::{BloodEcho, BloodSight, HeartbeatPulseRing, MundaneAmbiance, SuspectHeartbeat},
-    ui::{LedgerModalOpen, MultiplayerModalOpen},
+    stats::{DetectiveId, DetectiveSheet},
+    ui::{CharacterSelectModalOpen, LedgerModalOpen, MultiplayerModalOpen},
 };
 
 const EMBEDDED_CASE_01_SCENES: &str = include_str!("../assets/scenes/case_01_scenes.ron");
@@ -605,6 +606,9 @@ pub struct DetectivePlayer {
 pub struct CharacterVisualSprite;
 
 #[derive(Component)]
+pub struct LocalPlayerSenseAura;
+
+#[derive(Component)]
 pub struct ClickTargetMarker;
 
 #[derive(Component)]
@@ -615,6 +619,12 @@ pub struct RemotePeerActor {
 
 #[derive(Component)]
 pub struct RemotePeerVisual {
+    pub peer_id: u32,
+    pub character: DetectiveId,
+}
+
+#[derive(Component)]
+pub struct RemotePeerNameplate {
     pub peer_id: u32,
 }
 
@@ -686,6 +696,7 @@ impl Plugin for WorldPlugin {
                 (
                     sync_camera_viewport,
                     apply_scene_transitions,
+                    sync_local_player_character,
                     handle_point_and_click_input,
                     move_detective_player,
                     sync_remote_peer_entities,
@@ -735,6 +746,7 @@ fn sync_camera_viewport(
 fn spawn_initial_world(
     mut commands: Commands,
     registry: Res<SceneRegistry>,
+    sheet: Res<DetectiveSheet>,
     mut active_scene: ResMut<ActiveScene>,
     asset_server: Option<Res<AssetServer>>,
 ) {
@@ -750,16 +762,16 @@ fn spawn_initial_world(
         initial.spawn_entities(&mut commands, srv, &active_scene.saved_pulses);
     }
 
-    // Persistent Player Detective (Harlan Vale) — travels across scenes!
-    let vale_visual = if let Some(s) = srv {
+    // Persistent Player Detective — dynamically reflects the selected DetectiveId!
+    let player_visual = if let Some(s) = srv {
         Sprite {
-            image: s.load("sprites/vale.png"),
+            image: s.load(sheet.character.sprite_path()),
             custom_size: Some(Vec2::splat(68.0)),
             ..default()
         }
     } else {
         Sprite {
-            color: Color::srgb(0.22, 0.20, 0.25),
+            color: sheet.character.accent_color(),
             custom_size: Some(Vec2::new(26.0, 26.0)),
             ..default()
         }
@@ -771,7 +783,7 @@ fn spawn_initial_world(
             Transform::from_xyz(spawn_pos.x, spawn_pos.y, 4.0),
             Visibility::Visible,
             DetectivePlayer {
-                speed: 205.0,
+                speed: sheet.character.walk_speed(),
                 walk_phase: 0.0,
                 is_moving: false,
                 waypoints: Vec::new(),
@@ -788,7 +800,17 @@ fn spawn_initial_world(
                 Transform::from_xyz(0.0, -28.0, -0.2),
             ));
             parent.spawn((
-                vale_visual,
+                Sprite {
+                    color: sheet.character.accent_color().with_alpha(0.32),
+                    custom_size: Some(Vec2::splat(54.0)),
+                    ..default()
+                },
+                Transform::from_xyz(0.0, 0.0, -0.1),
+                Visibility::Hidden,
+                LocalPlayerSenseAura,
+            ));
+            parent.spawn((
+                player_visual,
                 Transform::from_xyz(0.0, 0.0, 0.1),
                 CharacterVisualSprite,
             ));
@@ -901,6 +923,43 @@ fn apply_scene_transitions(
     }
 }
 
+#[allow(clippy::type_complexity)]
+fn sync_local_player_character(
+    sheet: Res<DetectiveSheet>,
+    blood_sight: Res<BloodSight>,
+    asset_server: Option<Res<AssetServer>>,
+    mut player_q: Query<&mut DetectivePlayer>,
+    mut visual_q: Query<&mut Sprite, (With<CharacterVisualSprite>, Without<LocalPlayerSenseAura>)>,
+    mut aura_q: Query<(&mut Visibility, &mut Sprite), (With<LocalPlayerSenseAura>, Without<CharacterVisualSprite>)>,
+    mut last_char: Local<Option<DetectiveId>>,
+) {
+    if *last_char != Some(sheet.character) {
+        *last_char = Some(sheet.character);
+        if let Ok(mut player) = player_q.get_single_mut() {
+            player.speed = sheet.character.walk_speed();
+        }
+        if let Ok(mut vsprite) = visual_q.get_single_mut() {
+            if let Some(srv) = &asset_server {
+                vsprite.image = srv.load(sheet.character.sprite_path());
+                vsprite.color = Color::WHITE;
+                vsprite.custom_size = Some(Vec2::splat(68.0));
+            } else {
+                vsprite.color = sheet.character.accent_color();
+            }
+        }
+    }
+
+    if let Ok((mut avis, mut asprite)) = aura_q.get_single_mut() {
+        if blood_sight.active {
+            *avis = Visibility::Visible;
+            let pulse = (blood_sight.pulse_phase.sin() * 0.5 + 0.5) * 0.16;
+            asprite.color = sheet.character.accent_color().with_alpha(0.22 + pulse);
+        } else {
+            *avis = Visibility::Hidden;
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn handle_point_and_click_input(
     mouse: Res<ButtonInput<MouseButton>>,
@@ -908,6 +967,7 @@ fn handle_point_and_click_input(
     active_scene: Res<ActiveScene>,
     ledger_modal: Res<LedgerModalOpen>,
     mp_modal: Res<MultiplayerModalOpen>,
+    char_modal: Res<CharacterSelectModalOpen>,
     blood_sight: Res<BloodSight>,
     ledger: Res<ClueLedger>,
     cam_q: Query<&Transform, (With<SceneCamera>, Without<ClickTargetMarker>)>,
@@ -922,7 +982,7 @@ fn handle_point_and_click_input(
     mut enter_writer: EventWriter<EnterNodeEvent>,
     mut scene_writer: EventWriter<TransitionSceneEvent>,
 ) {
-    if ledger_modal.0 || mp_modal.open {
+    if ledger_modal.0 || mp_modal.open || char_modal.0 {
         return;
     }
     let clicked = mouse.just_pressed(MouseButton::Left) || mouse.just_pressed(MouseButton::Right);
@@ -1052,6 +1112,7 @@ fn move_detective_player(
     keys: Res<ButtonInput<KeyCode>>,
     active_scene: Res<ActiveScene>,
     mp_modal: Res<MultiplayerModalOpen>,
+    char_modal: Res<CharacterSelectModalOpen>,
     colliders: Query<
         (&Transform, &SolidCollider),
         (
@@ -1088,7 +1149,7 @@ fn move_detective_player(
     };
 
     let mut key_dir = Vec2::ZERO;
-    if !mp_modal.open {
+    if !mp_modal.open && !char_modal.0 {
         if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
             key_dir.y += 1.0;
         }
@@ -1216,7 +1277,7 @@ fn move_detective_player(
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn sync_remote_peer_entities(
     mut commands: Commands,
     time: Res<Time>,
@@ -1224,8 +1285,15 @@ fn sync_remote_peer_entities(
     active_scene: Res<ActiveScene>,
     asset_server: Option<Res<AssetServer>>,
     mut actors_q: Query<(Entity, &mut RemotePeerActor, &mut Transform, &mut Visibility)>,
-    mut visuals_q: Query<(&RemotePeerVisual, &mut Transform, &mut Sprite), Without<RemotePeerActor>>,
-    mut auras_q: Query<(&RemotePeerSightAura, &mut Visibility), Without<RemotePeerActor>>,
+    mut visuals_q: Query<
+        (&mut RemotePeerVisual, &mut Transform, &mut Sprite),
+        (Without<RemotePeerActor>, Without<RemotePeerSightAura>),
+    >,
+    mut plates_q: Query<(&RemotePeerNameplate, &mut Text2d, &mut TextColor)>,
+    mut auras_q: Query<
+        (&RemotePeerSightAura, &mut Visibility, &mut Sprite),
+        (Without<RemotePeerActor>, Without<RemotePeerVisual>),
+    >,
 ) {
     let mut existing_ids = HashMap::new();
     for (entity, actor, _, _) in &actors_q {
@@ -1240,22 +1308,17 @@ fn sync_remote_peer_entities(
 
     for (&pid, snap) in &session.peers {
         if !existing_ids.contains_key(&pid) {
-            let tint = match pid % 3 {
-                0 => Color::srgb(0.95, 0.78, 0.58),
-                1 => Color::srgb(0.75, 0.90, 0.95),
-                _ => Color::srgb(0.96, 0.68, 0.72),
-            };
+            let accent = snap.character.accent_color();
             let partner_sprite = if let Some(srv) = &asset_server {
                 Sprite {
-                    image: srv.load("sprites/vale.png"),
-                    color: tint,
+                    image: srv.load(snap.character.sprite_path()),
                     custom_size: Some(Vec2::splat(68.0)),
                     flip_x: snap.flip_x,
                     ..default()
                 }
             } else {
                 Sprite {
-                    color: tint,
+                    color: accent,
                     custom_size: Some(Vec2::new(26.0, 26.0)),
                     ..default()
                 }
@@ -1288,7 +1351,7 @@ fn sync_remote_peer_entities(
                     ));
                     parent.spawn((
                         Sprite {
-                            color: Color::srgba(0.95, 0.14, 0.26, 0.32),
+                            color: accent.with_alpha(0.32),
                             custom_size: Some(Vec2::splat(52.0)),
                             ..default()
                         },
@@ -1299,16 +1362,20 @@ fn sync_remote_peer_entities(
                     parent.spawn((
                         partner_sprite,
                         Transform::from_xyz(0.0, 0.0, 0.1),
-                        RemotePeerVisual { peer_id: pid },
+                        RemotePeerVisual {
+                            peer_id: pid,
+                            character: snap.character,
+                        },
                     ));
                     parent.spawn((
-                        Text2d::new(format!("Partner #{pid}")),
+                        Text2d::new(format!("{} (#{pid})", snap.character.display_name())),
                         TextFont {
                             font_size: 11.5,
                             ..default()
                         },
-                        TextColor(tint),
+                        TextColor(accent),
                         Transform::from_xyz(0.0, 40.0, 0.5),
+                        RemotePeerNameplate { peer_id: pid },
                     ));
                 });
         }
@@ -1335,8 +1402,17 @@ fn sync_remote_peer_entities(
         }
     }
 
-    for (vis_tag, mut vtf, mut sprite) in &mut visuals_q {
+    for (mut vis_tag, mut vtf, mut sprite) in &mut visuals_q {
         if let Some(snap) = session.peers.get(&vis_tag.peer_id) {
+            if vis_tag.character != snap.character {
+                vis_tag.character = snap.character;
+                if let Some(srv) = &asset_server {
+                    sprite.image = srv.load(snap.character.sprite_path());
+                    sprite.color = Color::WHITE;
+                } else {
+                    sprite.color = snap.character.accent_color();
+                }
+            }
             sprite.flip_x = snap.flip_x;
             if snap.moving {
                 vtf.translation.y = (time.elapsed_secs() * 13.0).sin().abs() * 3.0;
@@ -1346,10 +1422,18 @@ fn sync_remote_peer_entities(
         }
     }
 
-    for (aura, mut vis) in &mut auras_q {
+    for (plate, mut txt, mut col) in &mut plates_q {
+        if let Some(snap) = session.peers.get(&plate.peer_id) {
+            txt.0 = format!("{} (#{})", snap.character.display_name(), plate.peer_id);
+            col.0 = snap.character.accent_color();
+        }
+    }
+
+    for (aura, mut vis, mut asprite) in &mut auras_q {
         if let Some(snap) = session.peers.get(&aura.peer_id) {
             let in_same_scene =
                 snap.scene_id.is_empty() || snap.scene_id == active_scene.current_id;
+            asprite.color = snap.character.accent_color().with_alpha(0.32);
             *vis = if in_same_scene && snap.blood_sight {
                 Visibility::Visible
             } else {
@@ -1687,6 +1771,7 @@ enum NearbyCandidate {
 fn update_hotspot_prompts(
     keys: Res<ButtonInput<KeyCode>>,
     mp_modal: Res<MultiplayerModalOpen>,
+    char_modal: Res<CharacterSelectModalOpen>,
     player_q: Query<
         &Transform,
         (
@@ -1786,7 +1871,9 @@ fn update_hotspot_prompts(
             *lbl_vis = Visibility::Visible;
         }
 
-        if !mp_modal.open && (keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Space))
+        if !mp_modal.open
+            && !char_modal.0
+            && (keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Space))
         {
             match cand {
                 NearbyCandidate::Hotspot { node_id, .. } => {

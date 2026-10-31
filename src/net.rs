@@ -19,6 +19,7 @@ use wasm_bindgen::{prelude::Closure, JsCast};
 use crate::{
     narrative::{ClueLedger, NarrativeState},
     senses::{BloodSight, SetSuspectPulseEvent},
+    stats::{DetectiveId, DetectiveSheet},
     world::{ActiveScene, CharacterVisualSprite, DetectivePlayer},
 };
 
@@ -44,6 +45,8 @@ pub enum NetPacket {
     PeerTransform {
         peer_id: u32,
         #[serde(default)]
+        character: DetectiveId,
+        #[serde(default)]
         scene_id: String,
         x: f32,
         y: f32,
@@ -66,6 +69,7 @@ pub enum NetPacket {
 
 #[derive(Debug, Clone)]
 pub struct PeerSnapshot {
+    pub character: DetectiveId,
     pub scene_id: String,
     pub x: f32,
     pub y: f32,
@@ -704,6 +708,7 @@ fn poll_network_transport(
             }
             NetPacket::PeerTransform {
                 peer_id,
+                character,
                 scene_id,
                 x,
                 y,
@@ -715,6 +720,7 @@ fn poll_network_transport(
                     session.peers.insert(
                         peer_id,
                         PeerSnapshot {
+                            character,
                             scene_id,
                             x,
                             y,
@@ -753,6 +759,7 @@ fn poll_network_transport(
 fn broadcast_local_state(
     time: Res<Time>,
     mut session: ResMut<NetSession>,
+    sheet: Res<DetectiveSheet>,
     active_scene: Res<ActiveScene>,
     ledger: Res<ClueLedger>,
     blood_sight: Res<BloodSight>,
@@ -789,6 +796,7 @@ fn broadcast_local_state(
             let flip_x = visual_q.get_single().map(|s| s.flip_x).unwrap_or(false);
             outgoing.push(NetPacket::PeerTransform {
                 peer_id: session.my_peer_id,
+                character: sheet.character,
                 scene_id: active_scene.current_id.clone(),
                 x: tf.translation.x,
                 y: tf.translation.y,

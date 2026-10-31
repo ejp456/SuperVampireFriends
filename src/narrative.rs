@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::senses::{BloodSight, SetSuspectPulseEvent};
-use crate::stats::{DetectiveSheet, Faculty};
+use crate::stats::{DetectiveId, DetectiveSheet, Faculty};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClueDef {
@@ -17,6 +17,8 @@ pub struct ClueDef {
 pub struct PassiveVoice {
     pub faculty: Option<Faculty>,
     pub min_stat: i32,
+    #[serde(default)]
+    pub requires_character: Option<DetectiveId>,
     #[serde(default)]
     pub requires_blood_sight: bool,
     pub text: String,
@@ -49,6 +51,8 @@ pub struct DialogueChoice {
     pub requires_clue: Option<String>,
     #[serde(default)]
     pub hide_if_clue: Option<String>,
+    #[serde(default)]
+    pub requires_character: Option<DetectiveId>,
     #[serde(default)]
     pub requires_blood_sight: bool,
     #[serde(default)]
@@ -140,16 +144,17 @@ impl ClueLedger {
 #[derive(Debug, Clone)]
 pub struct ResolvedChoice {
     pub raw: DialogueChoice,
+    pub formatted_label: String,
     pub locked_check_failed: bool,
 }
 
 /// Focused one-exchange-at-a-time dialogue state:
-/// Only `my_line` (what you just said) + `other_speaker`/`other_line` (their direct reply).
+/// Only `my_line` (what your selected detective just said) + `other_speaker`/`other_line`.
 #[derive(Resource, Debug, Default)]
 pub struct NarrativeState {
     pub current_node_id: String,
     pub active_suspect_id: Option<String>,
-    /// What Harlan Vale (you) just said in this exchange, if anything.
+    /// What your selected detective just said in this exchange, if anything.
     pub my_line: Option<String>,
     /// Name of the character (or object) currently responding.
     pub other_speaker: String,
@@ -183,6 +188,12 @@ pub struct SelectChoiceEvent(pub usize);
 
 const EMBEDDED_CASE_01: &str = include_str!("../assets/cases/case_01.ron");
 
+pub fn format_for_character(raw: &str, character: DetectiveId) -> String {
+    raw.replace("{detective}", character.npc_address())
+        .replace("{sense}", character.sense_name())
+        .replace("{strain}", character.strain_label())
+}
+
 pub struct NarrativePlugin;
 
 impl Plugin for NarrativePlugin {
@@ -205,7 +216,7 @@ impl Plugin for NarrativePlugin {
                     handle_choice_hotkeys,
                     process_select_choice_events,
                     process_enter_node_events,
-                    refresh_choices_on_sense_change,
+                    refresh_choices_on_sense_or_character_change,
                 )
                     .chain(),
             );
@@ -233,10 +244,11 @@ pub fn load_case_01_data() -> CaseData {
 fn handle_choice_hotkeys(
     keys: Res<ButtonInput<KeyCode>>,
     mp_modal: Option<Res<crate::ui::MultiplayerModalOpen>>,
+    char_modal: Option<Res<crate::ui::CharacterSelectModalOpen>>,
     state: Res<NarrativeState>,
     mut writer: EventWriter<SelectChoiceEvent>,
 ) {
-    if mp_modal.map(|m| m.open).unwrap_or(false) {
+    if mp_modal.map(|m| m.open).unwrap_or(false) || char_modal.map(|c| c.0).unwrap_or(false) {
         return;
     }
     let key_map = [
@@ -270,8 +282,7 @@ fn process_select_choice_events(
             continue;
         }
 
-        // Record ONLY the player's latest spoken line for the 1-on-1 exchange view.
-        state.my_line = Some(resolved.raw.label.clone());
+        state.my_line = Some(resolved.formatted_label.clone());
         state.outcome_badge = None;
 
         if let Some(check) = &resolved.raw.skill_check {
@@ -310,6 +321,45 @@ fn process_select_choice_events(
     }
 }
 
+pub fn pick_passive_whisper(
+    node: &DialogueNode,
+    sheet: &DetectiveSheet,
+    blood_sight_active: bool,
+) -> Option<(String, Color)> {
+    for pv in &node.passive_voices {
+        if let Some(req_char) = pv.requires_character {
+            if req_char != sheet.character {
+                continue;
+            }
+        }
+        if pv.requires_blood_sight && !blood_sight_active {
+            continue;
+        }
+        let formatted = format_for_character(&pv.text, sheet.character);
+        if let Some(req_char) = pv.requires_character {
+            if pv.faculty.is_none() && pv.min_stat <= 0 {
+                return Some((
+                    format!("[{}] {}", req_char.sense_name().to_uppercase(), formatted),
+                    req_char.accent_color(),
+                ));
+            }
+        }
+        match pv.faculty {
+            Some(fac) if sheet.effective_stat(fac) >= pv.min_stat => {
+                return Some((format!("[{}] {}", fac.name(), formatted), fac.color()));
+            }
+            None if (sheet.hunger_pips() as i32) >= pv.min_stat => {
+                return Some((
+                    format!("[{}] {}", sheet.character.strain_label(), formatted),
+                    sheet.character.accent_color(),
+                ));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 fn process_enter_node_events(
     mut events: EventReader<EnterNodeEvent>,
     library: Res<CaseLibrary>,
@@ -345,8 +395,7 @@ fn process_enter_node_events(
         state.current_node_id = node.id.clone();
         state.active_suspect_id = node.active_suspect_id.clone();
         state.other_speaker = node.speaker.clone();
-        state.other_line = node.text.clone();
-        state.whisper_line = None;
+        state.other_line = format_for_character(&node.text, sheet.character);
 
         if node.hunger_delta != 0.0 {
             sheet.add_hunger(node.hunger_delta);
@@ -360,7 +409,6 @@ fn process_enter_node_events(
             });
         }
 
-        // Grant clues and fold notification neatly into the compact single-line badge.
         for clue_id in &node.grants_clues {
             if ledger.add_clue(clue_id) {
                 if let Some(def) = library.clues.get(clue_id) {
@@ -373,43 +421,35 @@ fn process_enter_node_events(
             }
         }
 
-        // Pick AT MOST ONE short instinct whisper so the screen never crowds.
-        for pv in &node.passive_voices {
-            if pv.requires_blood_sight && !blood_sight.active {
-                continue;
-            }
-            match pv.faculty {
-                Some(fac) if sheet.effective_stat(fac) >= pv.min_stat => {
-                    state.whisper_line = Some((format!("[{}] {}", fac.name(), pv.text), fac.color()));
-                    break;
-                }
-                None if (sheet.hunger_pips() as i32) >= pv.min_stat => {
-                    state.whisper_line = Some((
-                        format!("[THIRST] {}", pv.text),
-                        Color::srgb(0.95, 0.26, 0.34),
-                    ));
-                    break;
-                }
-                _ => {}
-            }
-        }
-
-        state.current_choices = resolve_node_choices(node, &ledger, blood_sight.active);
+        state.whisper_line = pick_passive_whisper(node, &sheet, blood_sight.active);
+        state.current_choices =
+            resolve_node_choices(node, &ledger, blood_sight.active, sheet.character);
         state.generation += 1;
     }
 }
 
-fn refresh_choices_on_sense_change(
+fn refresh_choices_on_sense_or_character_change(
     blood_sight: Res<BloodSight>,
+    sheet: Res<DetectiveSheet>,
     library: Res<CaseLibrary>,
     ledger: Res<ClueLedger>,
     mut state: ResMut<NarrativeState>,
+    mut last_char: Local<Option<DetectiveId>>,
 ) {
-    if !blood_sight.is_changed() || state.current_node_id.is_empty() {
+    let char_changed = *last_char != Some(sheet.character);
+    if !blood_sight.is_changed() && !char_changed {
+        return;
+    }
+    *last_char = Some(sheet.character);
+
+    if state.current_node_id.is_empty() {
         return;
     }
     if let Some(node) = library.nodes.get(&state.current_node_id) {
-        state.current_choices = resolve_node_choices(node, &ledger, blood_sight.active);
+        state.other_line = format_for_character(&node.text, sheet.character);
+        state.whisper_line = pick_passive_whisper(node, &sheet, blood_sight.active);
+        state.current_choices =
+            resolve_node_choices(node, &ledger, blood_sight.active, sheet.character);
         state.generation += 1;
     }
 }
@@ -418,9 +458,15 @@ pub fn resolve_node_choices(
     node: &DialogueNode,
     ledger: &ClueLedger,
     blood_sight_active: bool,
+    character: DetectiveId,
 ) -> Vec<ResolvedChoice> {
     let mut out = Vec::new();
     for ch in &node.choices {
+        if let Some(req_char) = ch.requires_character {
+            if req_char != character {
+                continue;
+            }
+        }
         if ch.requires_blood_sight && !blood_sight_active {
             continue;
         }
@@ -449,6 +495,7 @@ pub fn resolve_node_choices(
 
         out.push(ResolvedChoice {
             raw: ch.clone(),
+            formatted_label: format_for_character(&ch.label, character),
             locked_check_failed,
         });
     }
@@ -499,5 +546,36 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn each_detective_gets_distinct_abilities_at_corpse_and_climax() {
+        let data = ron::from_str::<CaseData>(EMBEDDED_CASE_01).unwrap();
+        let lib = CaseLibrary::from_case_data(data);
+        let ledger = ClueLedger::default();
+        let corpse = lib.nodes.get("inspect_corpse").unwrap();
+
+        let richey_opts = resolve_node_choices(corpse, &ledger, false, DetectiveId::Richey);
+        assert!(richey_opts
+            .iter()
+            .any(|c| c.formatted_label.contains("[Vampire Senses]")));
+        assert!(!richey_opts
+            .iter()
+            .any(|c| c.formatted_label.contains("[Werewolf Scent]")));
+
+        let lucker_opts = resolve_node_choices(corpse, &ledger, false, DetectiveId::LuckerAndRon);
+        assert!(lucker_opts
+            .iter()
+            .any(|c| c.formatted_label.contains("[Ghost Lucker — Séance]")));
+
+        let pinckney_opts = resolve_node_choices(corpse, &ledger, false, DetectiveId::Pinckney);
+        assert!(pinckney_opts
+            .iter()
+            .any(|c| c.formatted_label.contains("[Werewolf Scent]")));
+
+        let zombie_opts = resolve_node_choices(corpse, &ledger, false, DetectiveId::Zombie);
+        assert!(zombie_opts
+            .iter()
+            .any(|c| c.formatted_label.contains("[Zombie Psychometry]")));
     }
 }

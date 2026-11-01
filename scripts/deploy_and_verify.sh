@@ -12,17 +12,10 @@ if [ "${SKIP_DEPLOY:-0}" = "1" ]; then
   exit 0
 fi
 
-# If invoked from Windows Git Bash (MINGW/MSYS/CYGWIN), re-exec inside Ubuntu WSL
-case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*)
-    WIN_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -W)"
-    WSL_SCRIPT_PATH="$(wsl.exe -d Ubuntu wslpath -u "$WIN_SCRIPT_DIR")/deploy_and_verify.sh"
-    exec wsl.exe -d Ubuntu bash "$WSL_SCRIPT_PATH" "$@"
-    ;;
-esac
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 
 GCP_PROJECT_ID="${GCP_PROJECT_ID:-streaming-friends-server}"
 GCP_ZONE="${GCP_ZONE:-northamerica-northeast2-b}"
@@ -76,98 +69,31 @@ echo "  [post-submit] Deploying SuperVampireFriends (${SHORT_SHA}) -> ${GCP_PROJ
 echo "=============================================================================="
 
 # ------------------------------------------------------------------------------
-# 1. Build WebAssembly game binary + JS bindings (uses Linux toolchain or Windows cargo.exe)
+# 1. Build WebAssembly game binary + JS bindings via native Linux toolchain
 # ------------------------------------------------------------------------------
+for bin_req in cargo cc wasm-bindgen; do
+  if ! command -v "$bin_req" >/dev/null 2>&1; then
+    echo "[post-submit] Error: Required Linux build tool '$bin_req' not found in PATH." >&2
+    exit 1
+  fi
+done
+
 mkdir -p "$REPO_ROOT/web/pkg"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/crimson-ledger-target}"
+mkdir -p "$CARGO_TARGET_DIR"
 
-if command -v cargo >/dev/null 2>&1 && command -v cc >/dev/null 2>&1 && command -v wasm-bindgen >/dev/null 2>&1; then
-  echo "==> [1/4] Compiling WASM via native Linux Rust toolchain..."
-  (
-    cd "$REPO_ROOT"
-    cargo build --release --target wasm32-unknown-unknown --bin vampire_noir_rpg
-    wasm-bindgen \
-      --out-dir "$REPO_ROOT/web/pkg" \
-      --target web \
-      --no-typescript \
-      --remove-name-section \
-      --remove-producers-section \
-      "$REPO_ROOT/target/wasm32-unknown-unknown/release/vampire_noir_rpg.wasm"
-  )
-else
-  CARGO_EXE="/mnt/c/Users/etaip/.cargo/bin/cargo.exe"
-  if [ ! -x "$CARGO_EXE" ] && command -v cargo.exe >/dev/null 2>&1; then
-    CARGO_EXE="$(command -v cargo.exe)"
-  fi
-  if [ ! -x "$CARGO_EXE" ]; then
-    echo "[post-submit] Error: Neither Linux cargo+cc nor Windows cargo.exe was found." >&2
-    exit 1
-  fi
-
-  WASM_BINDGEN_EXE=""
-  for candidate in \
-    "$REPO_ROOT/wasm-bindgen-0.2.130-x86_64-pc-windows-msvc/wasm-bindgen.exe" \
-    "/mnt/c/Users/etaip/.gemini/antigravity/scratch/vampire_noir_rpg/wasm-bindgen-0.2.130-x86_64-pc-windows-msvc/wasm-bindgen.exe" \
-    "/mnt/c/Users/etaip/.cargo/bin/wasm-bindgen.exe"; do
-    if [ -x "$candidate" ]; then
-      WASM_BINDGEN_EXE="$candidate"
-      break
-    fi
-  done
-  if [ -z "$WASM_BINDGEN_EXE" ]; then
-    echo "[post-submit] Error: wasm-bindgen.exe (0.2.130) not found." >&2
-    exit 1
-  fi
-
-  # Reuse existing warm target directory on C: if available for ~5s incremental builds
-  SHARED_WIN_TARGET_WSL="/mnt/c/Users/etaip/.gemini/antigravity/scratch/vampire_noir_rpg/target"
-  if [ -d "$SHARED_WIN_TARGET_WSL" ]; then
-    TARGET_WSL_DIR="$SHARED_WIN_TARGET_WSL"
-  else
-    TARGET_WSL_DIR="/mnt/c/Users/etaip/.gemini/antigravity/scratch/.svf-build-cache/target"
-    mkdir -p "$TARGET_WSL_DIR"
-  fi
-  TARGET_WIN_DIR="$(wslpath -w "$TARGET_WSL_DIR")"
-
-  case "$REPO_ROOT" in
-    /mnt/[a-zA-Z]/*)
-      BUILD_WSL_DIR="$REPO_ROOT"
-      ;;
-    *)
-      BUILD_WSL_DIR="/mnt/c/Users/etaip/.gemini/antigravity/scratch/.svf-build-cache/workspace"
-      mkdir -p "$BUILD_WSL_DIR"
-      rsync -a --delete \
-        "$REPO_ROOT/Cargo.toml" \
-        "$REPO_ROOT/Cargo.lock" \
-        "$REPO_ROOT/.cargo" \
-        "$REPO_ROOT/src" \
-        "$REPO_ROOT/assets" \
-        "$BUILD_WSL_DIR/"
-      ;;
-  esac
-
-  echo "==> [1/4] Compiling WASM via Windows Rust toolchain (warm incremental cache)..."
-  (
-    cd "$BUILD_WSL_DIR"
-    "$CARGO_EXE" build --release --target wasm32-unknown-unknown --bin vampire_noir_rpg --target-dir "$TARGET_WIN_DIR"
-  )
-
-  WASM_INPUT_WIN="$(wslpath -w "$TARGET_WSL_DIR/wasm32-unknown-unknown/release/vampire_noir_rpg.wasm")"
-  OUT_PKG_WSL="/mnt/c/Users/etaip/.gemini/antigravity/scratch/.svf-build-cache/pkg-out"
-  rm -rf "$OUT_PKG_WSL"
-  mkdir -p "$OUT_PKG_WSL"
-  OUT_PKG_WIN="$(wslpath -w "$OUT_PKG_WSL")"
-
-  "$WASM_BINDGEN_EXE" \
-    --out-dir "$OUT_PKG_WIN" \
+echo "==> [1/4] Compiling WASM via native Linux Rust toolchain ($CARGO_TARGET_DIR)..."
+(
+  cd "$REPO_ROOT"
+  cargo build --release --target wasm32-unknown-unknown --bin vampire_noir_rpg
+  wasm-bindgen \
+    --out-dir "$REPO_ROOT/web/pkg" \
     --target web \
     --no-typescript \
     --remove-name-section \
     --remove-producers-section \
-    "$WASM_INPUT_WIN"
-
-  cp -f "$OUT_PKG_WSL/vampire_noir_rpg_bg.wasm" "$REPO_ROOT/web/pkg/vampire_noir_rpg_bg.wasm"
-  cp -f "$OUT_PKG_WSL/vampire_noir_rpg.js" "$REPO_ROOT/web/pkg/vampire_noir_rpg.js"
-fi
+    "$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/vampire_noir_rpg.wasm"
+)
 
 gzip -9 -k -f "$REPO_ROOT/web/pkg/vampire_noir_rpg_bg.wasm" "$REPO_ROOT/web/pkg/vampire_noir_rpg.js"
 

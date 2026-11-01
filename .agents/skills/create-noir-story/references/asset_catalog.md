@@ -16,7 +16,11 @@ All paths below are relative to `assets/` (matching Bevy's `AssetServer` paths i
 | `sprites/clara.png` | `portraits/clara_portrait.png` | `(68.0, 68.0)` | `Some((14.0, 14.0))` | Lounge singer, night clerk, heiress, witness |
 | `sprites/miller.png` | `portraits/miller_portrait.png` | `(68.0, 68.0)` | `Some((14.0, 14.0))` | Detective Sgt., Harbor Lt., crooked beat cop, watchman |
 | `sprites/vale.png` | `portraits/vale_portrait.png` | `(68.0, 68.0)` | `Some((14.0, 14.0))` | Night coroner, occult scholar, archivist, syndicate fixer |
+| `sprites/sabine.png` | `portraits/sabine_portrait.png` | `(68.0, 68.0)` | `Some((14.0, 14.0))` | Indentured courtesan, society witness, starlet |
+| `sprites/vespera.png` | `portraits/vespera_portrait.png` | `(68.0, 68.0)` | `Some((14.0, 14.0))` | Salon madam, elder patroness, high-society blackmailer |
+| `sprites/corso.png` | `portraits/corso_portrait.png` | `(68.0, 68.0)` | `Some((14.0, 14.0))` | Courtroom bailiff, chauffeur, municipal heavy |
 | `sprites/vance_corpse.png` | *(none)* | `(78.0, 78.0)`–`(82.0, 82.0)` | `None` | Murder victim on rug, autopsy slab, alley, or dock |
+| `sprites/cross_corpse.png` | *(none)* | `(82.0, 82.0)` | `None` | Aristocratic/magistrate corpse in formal pinstripe suit |
 
 ---
 
@@ -45,6 +49,9 @@ All paths below are relative to `assets/` (matching Bevy's `AssetServer` paths i
 | `props/filing_cabinet.png` | `(56.0, 84.0)` | `Some((22.0, 34.0))` | Office, morgue, archives |
 | `props/morgue_autopsy_table.png` | `(128.0, 74.0)` | `Some((54.0, 24.0))` | Morgue, clinic, secret lab |
 | `props/occult_candelabra.png` | `(56.0, 66.0)` | `Some((18.0, 20.0))` | Sanctum, hidden alcove, velvet study |
+| `props/velvet_divan.png` | `(126.0, 74.0)` | `Some((48.0, 24.0))` | Boudoir, parlor suite, aristocratic study |
+| `props/absinthe_tray.png` | `(56.0, 48.0)` | `Some((18.0, 16.0))` | Apothecary bar, boudoir poison clue, parlor |
+| `props/judicial_briefcase.png` | `(58.0, 48.0)` | `Some((18.0, 16.0))` | Court docket clue, blackmail drop, office |
 | `props/crime_chalk_markers.png` | `(54.0, 42.0)` | `None` (`solid: false`) | Any crime scene floor |
 | `props/scattered_papers.png` | `(36.0, 30.0)` | `None` (`solid: false`) | Ledger clues, desk top, alley |
 | `props/crimson_rug.png` | `(180.0, 120.0)` | Surface (`z: 0.7..0.8`) | Lounge, office, mansion parlor |

@@ -2173,6 +2173,9 @@ mod tests {
             "props/morgue_autopsy_table.png",
             "props/occult_candelabra.png",
             "props/crime_chalk_markers.png",
+            "props/velvet_divan.png",
+            "props/absinthe_tray.png",
+            "props/judicial_briefcase.png",
         ];
 
         for rel in scene_setting_kit {

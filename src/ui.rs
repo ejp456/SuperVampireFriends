@@ -58,6 +58,9 @@ pub struct PortraitAssets {
     pub clara: Option<Handle<Image>>,
     pub miller: Option<Handle<Image>>,
     pub vale: Option<Handle<Image>>,
+    pub sabine: Option<Handle<Image>>,
+    pub vespera: Option<Handle<Image>>,
+    pub corso: Option<Handle<Image>>,
 }
 
 impl PortraitAssets {
@@ -77,6 +80,14 @@ impl PortraitAssets {
             self.miller.clone()
         } else if speaker.contains("VALE") {
             self.vale.clone()
+        } else if speaker.contains("SABINE") {
+            self.sabine.clone()
+        } else if speaker.contains("VESPERA") {
+            self.vespera.clone()
+        } else if speaker.contains("CORSO") {
+            self.corso.clone()
+        } else if speaker.contains("RICHEY") {
+            self.richey.clone()
         } else if speaker.contains("ECHO IN RON") {
             self.lucker_ron.clone()
         } else if speaker.contains("PINCKNEY") {
@@ -254,6 +265,9 @@ fn load_portrait_assets(
         portraits.clara = Some(server.load("portraits/clara_portrait.png"));
         portraits.miller = Some(server.load("portraits/miller_portrait.png"));
         portraits.vale = Some(server.load("portraits/vale_portrait.png"));
+        portraits.sabine = Some(server.load("portraits/sabine_portrait.png"));
+        portraits.vespera = Some(server.load("portraits/vespera_portrait.png"));
+        portraits.corso = Some(server.load("portraits/corso_portrait.png"));
     }
 }
 

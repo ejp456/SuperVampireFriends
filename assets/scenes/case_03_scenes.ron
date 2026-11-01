@@ -1,0 +1,673 @@
+SceneCatalog(
+    story_name: "The Gilded Vein",
+    initial_scene: "boudoir_four",
+    initial_spawn: (-48.0, -78.0),
+    scenes: [
+        // =====================================================================
+        // SCENE 1: THE GILDED VEIN — BOUDOIR 4 (CRIME SCENE SUITE)
+        // =====================================================================
+        SceneClass(
+            id: "boudoir_four",
+            title: "The Gilded Vein — Boudoir 4",
+            environment: Room,
+            walk_bounds: (292.0, 218.0),
+            camera_pan_bounds: (95.0, 75.0),
+            rain_drops: 0,
+            surfaces: [
+                // Deep wine-stained parquet boudoir floor
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (610.0, 464.0),
+                    z: 0.0,
+                    normal_rgba: (0.13, 0.07, 0.10, 1.0),
+                    blood_sight_rgba: (0.05, 0.04, 0.09, 1.0),
+                    neon_flicker: None,
+                ),
+                // Warm amber-rose candlelit haze over the divan alcove
+                SceneSurface(
+                    pos: (12.0, 48.0),
+                    size: (360.0, 240.0),
+                    z: 0.4,
+                    normal_rgba: (0.86, 0.34, 0.42, 0.10),
+                    blood_sight_rgba: (0.62, 0.08, 0.22, 0.10),
+                    neon_flicker: Some(0.08),
+                ),
+                // Plush Persian crimson rug beneath the chaise & victim
+                SceneSurface(
+                    pos: (16.0, 52.0),
+                    size: (216.0, 144.0),
+                    z: 0.75,
+                    normal_rgba: (0.95, 0.90, 0.90, 1.0),
+                    blood_sight_rgba: (0.36, 0.24, 0.32, 0.95),
+                    neon_flicker: None,
+                    sprite_path: Some("props/crimson_rug.png"),
+                ),
+                // Ash-darkened crimson spill beside Judge Cross's collar
+                SceneSurface(
+                    pos: (-6.0, 20.0),
+                    size: (44.0, 32.0),
+                    z: 1.3,
+                    normal_rgba: (0.78, 0.72, 0.76, 0.88),
+                    blood_sight_rgba: (1.0, 0.38, 0.52, 0.98),
+                    neon_flicker: None,
+                    sprite_path: Some("props/blood_pool.png"),
+                ),
+            ],
+            walls: [
+                // North wall behind draped boudoir curtain
+                SceneWall(pos: (0.0, 232.0), size: (630.0, 20.0), color_rgb: (0.24, 0.13, 0.18), solid: true),
+                // West wall
+                SceneWall(pos: (-305.0, 0.0), size: (20.0, 484.0), color_rgb: (0.24, 0.13, 0.18), solid: true),
+                // East wall
+                SceneWall(pos: (305.0, 0.0), size: (20.0, 484.0), color_rgb: (0.24, 0.13, 0.18), solid: true),
+                // South wall split around archway to The Madam's Salon at x = 0
+                SceneWall(pos: (-185.0, -232.0), size: (258.0, 20.0), color_rgb: (0.24, 0.13, 0.18), solid: true),
+                SceneWall(pos: (185.0, -232.0), size: (258.0, 20.0), color_rgb: (0.24, 0.13, 0.18), solid: true),
+            ],
+            props: [
+                // Heavy burgundy velvet stage-style canopy curtain along North alcove
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/velvet_curtain.png"),
+                    pos: (16.0, 196.0),
+                    size: (228.0, 62.0),
+                    collider_half: None,
+                    z: 3.4,
+                    color_rgba: (0.92, 0.78, 0.84, 1.0),
+                    solid: false,
+                ),
+                // Custom tufted crimson velvet boudoir divan
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/velvet_divan.png"),
+                    pos: (34.0, 114.0),
+                    size: (126.0, 74.0),
+                    collider_half: Some((48.0, 24.0)),
+                    z: 2.3,
+                    color_rgba: (1.0, 0.96, 0.96, 1.0),
+                    solid: true,
+                ),
+                // Flickering wrought-iron boudoir candelabra in NW corner
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/occult_candelabra.png"),
+                    pos: (-210.0, 142.0),
+                    size: (56.0, 66.0),
+                    collider_half: Some((18.0, 20.0)),
+                    z: 2.5,
+                    color_rgba: (0.98, 0.88, 0.68, 1.0),
+                    solid: true,
+                ),
+                // Intimate East parlor table & chairs
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/club_table_chairs.png"),
+                    pos: (212.0, 32.0),
+                    size: (92.0, 70.0),
+                    collider_half: Some((36.0, 24.0)),
+                    z: 2.4,
+                    color_rgba: (0.86, 0.72, 0.74, 1.0),
+                    solid: true,
+                ),
+                // Numbered evidence markers placed around Cross's boots
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/crime_chalk_markers.png"),
+                    pos: (-68.0, 20.0),
+                    size: (52.0, 40.0),
+                    collider_half: None,
+                    z: 1.8,
+                    color_rgba: (0.95, 0.86, 0.34, 1.0),
+                    solid: false,
+                ),
+            ],
+            characters: [
+                // Murdered Superior Court Judge Harlan Cross
+                SceneCharacter(
+                    id: "cross_corpse",
+                    display_name: "Judge Harlan Cross's Corpse",
+                    nameplate: None,
+                    sprite_path: "sprites/cross_corpse.png",
+                    fallback_rgb: (0.76, 0.72, 0.76),
+                    pos: (-12.0, 34.0),
+                    sprite_size: (82.0, 82.0),
+                    collider_half: None,
+                    resting_bpm: None,
+                    dialogue_node: "inspect_cross_corpse",
+                    interact_radius: 82.0,
+                    nameplate_rgb: (0.86, 0.82, 0.86),
+                ),
+                // Shivering indentured blood-courtesan Sabine Marlowe
+                SceneCharacter(
+                    id: "sabine",
+                    display_name: "Sabine Marlowe",
+                    nameplate: Some("Sabine Marlowe"),
+                    sprite_path: "sprites/sabine.png",
+                    fallback_rgb: (0.88, 0.52, 0.58),
+                    pos: (-162.0, 28.0),
+                    sprite_size: (68.0, 68.0),
+                    collider_half: Some((14.0, 14.0)),
+                    resting_bpm: Some(92.0),
+                    dialogue_node: "talk_sabine_hub",
+                    interact_radius: 76.0,
+                    nameplate_rgb: (0.96, 0.78, 0.82),
+                ),
+            ],
+            clues: [
+                // Silver absinthe tray & wormwood goblet beside the divan
+                SceneClue(
+                    id: "boudoir_absinthe_goblet",
+                    label: "Wormwood Goblet & Silver Tray",
+                    node_id: "inspect_boudoir_goblet",
+                    sprite_path: Some("props/absinthe_tray.png"),
+                    pos: (132.0, 104.0),
+                    size: (56.0, 48.0),
+                    z: 2.6,
+                    color_rgba: (0.96, 0.98, 0.94, 1.0),
+                    collider_half: Some((18.0, 16.0)),
+                    interact_radius: 76.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: Some(0.55),
+                ),
+                // Unlocked monogrammed judicial briefcase near the SE chair
+                SceneClue(
+                    id: "boudoir_briefcase",
+                    label: "Judge Cross's Calfskin Briefcase",
+                    node_id: "inspect_judicial_briefcase",
+                    sprite_path: Some("props/judicial_briefcase.png"),
+                    pos: (168.0, -76.0),
+                    size: (58.0, 48.0),
+                    z: 2.6,
+                    color_rgba: (0.96, 0.90, 0.82, 1.0),
+                    collider_half: Some((18.0, 16.0)),
+                    interact_radius: 76.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+            ],
+            blood_echoes: [
+                // Scorched silver-vitae aura pooling beneath Judge Cross
+                SceneBloodEcho(
+                    pos: (-12.0, 28.0),
+                    size: (64.0, 48.0),
+                    alpha: 0.66,
+                    phase_offset: 0.0,
+                    sprite_path: Some("props/echo_pool.png"),
+                ),
+                // Faint supernatural residue leading from the Salon doorway to the wormwood tray
+                SceneBloodEcho(
+                    pos: (18.0, -152.0),
+                    size: (40.0, 22.0),
+                    alpha: 0.48,
+                    phase_offset: 0.7,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: 62.0,
+                ),
+                SceneBloodEcho(
+                    pos: (68.0, -42.0),
+                    size: (42.0, 22.0),
+                    alpha: 0.52,
+                    phase_offset: 1.4,
+                    sprite_path: Some("props/echo_drops.png"),
+                    rotation_deg: 58.0,
+                ),
+                SceneBloodEcho(
+                    pos: (118.0, 62.0),
+                    size: (44.0, 22.0),
+                    alpha: 0.56,
+                    phase_offset: 2.1,
+                    sprite_path: Some("props/echo_smear.png"),
+                    rotation_deg: 65.0,
+                ),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_boudoir_to_salon",
+                    label: "Step Out to Apothecary Salon",
+                    pos: (0.0, -212.0),
+                    size: (74.0, 18.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "madams_salon",
+                    target_spawn: (0.0, 156.0),
+                    glow_rgb: (0.92, 0.48, 0.62),
+                ),
+            ],
+        ),
+
+        // =====================================================================
+        // SCENE 2: THE GILDED VEIN — APOTHECARY SALON (RECEPTION & TONIC BAR)
+        // =====================================================================
+        SceneClass(
+            id: "madams_salon",
+            title: "The Gilded Vein — Apothecary Salon",
+            environment: Room,
+            walk_bounds: (292.0, 218.0),
+            camera_pan_bounds: (95.0, 75.0),
+            rain_drops: 0,
+            surfaces: [
+                // Dark polished walnut & oxblood parlor floor
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (610.0, 464.0),
+                    z: 0.0,
+                    normal_rgba: (0.11, 0.08, 0.09, 1.0),
+                    blood_sight_rgba: (0.05, 0.05, 0.09, 1.0),
+                    neon_flicker: None,
+                ),
+                // Emerald-gold absinthe bar & chandelier pool
+                SceneSurface(
+                    pos: (-36.0, 12.0),
+                    size: (390.0, 250.0),
+                    z: 0.4,
+                    normal_rgba: (0.48, 0.76, 0.58, 0.09),
+                    blood_sight_rgba: (0.58, 0.10, 0.24, 0.09),
+                    neon_flicker: Some(0.06),
+                ),
+                // Central salon runner rug
+                SceneSurface(
+                    pos: (28.0, -8.0),
+                    size: (204.0, 134.0),
+                    z: 0.72,
+                    normal_rgba: (0.90, 0.84, 0.86, 1.0),
+                    blood_sight_rgba: (0.34, 0.22, 0.30, 0.92),
+                    neon_flicker: None,
+                    sprite_path: Some("props/crimson_rug.png"),
+                ),
+            ],
+            walls: [
+                // North wall split around velvet archway to Boudoir 4 at x = 0
+                SceneWall(pos: (-185.0, 232.0), size: (258.0, 20.0), color_rgb: (0.22, 0.14, 0.18), solid: true),
+                SceneWall(pos: (185.0, 232.0), size: (258.0, 20.0), color_rgb: (0.22, 0.14, 0.18), solid: true),
+                // South wall
+                SceneWall(pos: (0.0, -232.0), size: (630.0, 20.0), color_rgb: (0.22, 0.14, 0.18), solid: true),
+                // West wall behind tonic bar
+                SceneWall(pos: (-305.0, 0.0), size: (20.0, 484.0), color_rgb: (0.22, 0.14, 0.18), solid: true),
+                // East wall split around service door to Red-Lantern Alley near y = -24
+                SceneWall(pos: (305.0, 130.0), size: (20.0, 224.0), color_rgb: (0.22, 0.14, 0.18), solid: true),
+                SceneWall(pos: (305.0, -155.0), size: (20.0, 174.0), color_rgb: (0.22, 0.14, 0.18), solid: true),
+            ],
+            props: [
+                // Long carved mahogany apothecary & absinthe dispensary bar
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/mahogany_bar.png"),
+                    pos: (-212.0, 12.0),
+                    size: (84.0, 185.0),
+                    collider_half: Some((21.0, 92.5)),
+                    z: 2.4,
+                    color_rgba: (0.92, 0.84, 0.82, 1.0),
+                    solid: true,
+                ),
+                // Locked tonic & patron contract cabinet behind bar
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/filing_cabinet.png"),
+                    pos: (-252.0, 152.0),
+                    size: (56.0, 84.0),
+                    collider_half: Some((22.0, 34.0)),
+                    z: 2.5,
+                    color_rgba: (0.58, 0.46, 0.50, 1.0),
+                    solid: true,
+                ),
+                // Low jazz jukebox purring softly in the SW parlor corner
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/vintage_jukebox.png"),
+                    pos: (-226.0, -154.0),
+                    size: (60.0, 86.0),
+                    collider_half: Some((24.0, 34.0)),
+                    z: 2.5,
+                    color_rgba: (0.94, 0.82, 0.86, 1.0),
+                    solid: true,
+                ),
+                // Velvet-draped patron waiting table in South salon
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/club_table_chairs.png"),
+                    pos: (48.0, -142.0),
+                    size: (96.0, 72.0),
+                    collider_half: Some((38.0, 26.0)),
+                    z: 2.4,
+                    color_rgba: (0.88, 0.74, 0.78, 1.0),
+                    solid: true,
+                ),
+                // Madam's reception desk on the NE wall
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/detective_desk.png"),
+                    pos: (168.0, 128.0),
+                    size: (108.0, 72.0),
+                    collider_half: Some((46.0, 26.0)),
+                    z: 2.5,
+                    color_rgba: (0.64, 0.42, 0.46, 1.0),
+                    solid: true,
+                ),
+            ],
+            characters: [
+                // Proprietor Madame Colette Vespera
+                SceneCharacter(
+                    id: "vespera",
+                    display_name: "Madame Colette Vespera",
+                    nameplate: Some("Madame Vespera"),
+                    sprite_path: "sprites/vespera.png",
+                    fallback_rgb: (0.72, 0.44, 0.82),
+                    pos: (-118.0, 44.0),
+                    sprite_size: (68.0, 68.0),
+                    collider_half: Some((14.0, 14.0)),
+                    resting_bpm: Some(64.0),
+                    dialogue_node: "talk_vespera_hub",
+                    interact_radius: 76.0,
+                    nameplate_rgb: (0.88, 0.74, 0.96),
+                ),
+            ],
+            clues: [
+                // House Tonic & Wardship Ledger open near the south end of the mahogany bar
+                SceneClue(
+                    id: "salon_dispensary_ledger",
+                    label: "Tonic Bar & Wardship Ledger",
+                    node_id: "inspect_dispensary_ledger",
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (-156.0, -54.0),
+                    size: (40.0, 34.0),
+                    z: 3.0,
+                    color_rgba: (0.96, 0.92, 0.80, 1.0),
+                    collider_half: None,
+                    interact_radius: 76.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+            ],
+            blood_echoes: [
+                // Supernatural chemical/boot trail from behind Vespera's bar straight out the East alley door
+                SceneBloodEcho(
+                    pos: (-142.0, -6.0),
+                    size: (44.0, 22.0),
+                    alpha: 0.56,
+                    phase_offset: 0.0,
+                    sprite_path: Some("props/echo_drops.png"),
+                    rotation_deg: -6.0,
+                ),
+                SceneBloodEcho(
+                    pos: (-42.0, -14.0),
+                    size: (38.0, 22.0),
+                    alpha: 0.54,
+                    phase_offset: 0.7,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: -5.0,
+                ),
+                SceneBloodEcho(
+                    pos: (74.0, -20.0),
+                    size: (40.0, 22.0),
+                    alpha: 0.56,
+                    phase_offset: 1.4,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: -4.0,
+                ),
+                SceneBloodEcho(
+                    pos: (196.0, -24.0),
+                    size: (46.0, 22.0),
+                    alpha: 0.60,
+                    phase_offset: 2.1,
+                    sprite_path: Some("props/echo_smear.png"),
+                    rotation_deg: -2.0,
+                ),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_salon_to_boudoir",
+                    label: "Enter Boudoir 4 (Crime Scene)",
+                    pos: (0.0, 212.0),
+                    size: (74.0, 18.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "boudoir_four",
+                    target_spawn: (0.0, -156.0),
+                    glow_rgb: (0.94, 0.38, 0.52),
+                ),
+                SceneDoorwaySpec(
+                    id: "door_salon_to_alley",
+                    label: "Service Door to Red-Lantern Alley",
+                    pos: (286.0, -24.0),
+                    size: (18.0, 74.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "red_lantern_alley",
+                    target_spawn: (-226.0, -24.0),
+                    glow_rgb: (0.46, 0.80, 0.96),
+                ),
+            ],
+        ),
+
+        // =====================================================================
+        // SCENE 3: RED-LANTERN ALLEY — SERVICE CURB (RAINY EXTERIOR)
+        // =====================================================================
+        SceneClass(
+            id: "red_lantern_alley",
+            title: "Red-Lantern Alley — Service Curb",
+            environment: Alley,
+            walk_bounds: (292.0, 218.0),
+            camera_pan_bounds: (95.0, 75.0),
+            rain_drops: 64,
+            surfaces: [
+                // Rain-soaked dark cobblestone alley & curb
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (610.0, 464.0),
+                    z: 0.0,
+                    normal_rgba: (0.07, 0.08, 0.11, 1.0),
+                    blood_sight_rgba: (0.04, 0.04, 0.08, 1.0),
+                    neon_flicker: None,
+                ),
+                // Flickering crimson neon reflection puddle outside the Salon door
+                SceneSurface(
+                    pos: (-192.0, 18.0),
+                    size: (156.0, 96.0),
+                    z: 0.4,
+                    normal_rgba: (0.90, 0.18, 0.36, 0.15),
+                    blood_sight_rgba: (0.72, 0.10, 0.28, 0.18),
+                    neon_flicker: Some(0.16),
+                ),
+                // Cold streetlamp sheen beside Judge Cross's parked coupe
+                SceneSurface(
+                    pos: (118.0, -68.0),
+                    size: (196.0, 114.0),
+                    z: 0.4,
+                    normal_rgba: (0.46, 0.68, 0.90, 0.11),
+                    blood_sight_rgba: (0.36, 0.16, 0.42, 0.12),
+                    neon_flicker: Some(0.06),
+                ),
+            ],
+            walls: [
+                // North brick alley wall
+                SceneWall(pos: (0.0, 232.0), size: (630.0, 20.0), color_rgb: (0.16, 0.16, 0.20), solid: true),
+                // South gutter curb wall
+                SceneWall(pos: (0.0, -232.0), size: (630.0, 20.0), color_rgb: (0.14, 0.15, 0.18), solid: true),
+                // East iron alley fence
+                SceneWall(pos: (305.0, 0.0), size: (20.0, 484.0), color_rgb: (0.16, 0.16, 0.20), solid: true),
+                // West brick brothel facade split around Salon service door near y = -24
+                SceneWall(pos: (-305.0, 130.0), size: (20.0, 224.0), color_rgb: (0.20, 0.14, 0.16), solid: true),
+                SceneWall(pos: (-305.0, -155.0), size: (20.0, 174.0), color_rgb: (0.20, 0.14, 0.16), solid: true),
+            ],
+            props: [
+                // Buzzing crimson neon lounge sign above the back service door
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/neon_lounge_sign.png"),
+                    pos: (-226.0, 96.0),
+                    size: (128.0, 50.0),
+                    collider_half: None,
+                    z: 3.3,
+                    color_rgba: (1.0, 0.72, 0.82, 1.0),
+                    solid: false,
+                ),
+                // Overflowing alley dumpster along North wall
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/alley_dumpster.png"),
+                    pos: (-48.0, 158.0),
+                    size: (112.0, 76.0),
+                    collider_half: Some((48.0, 28.0)),
+                    z: 2.5,
+                    color_rgba: (0.68, 0.74, 0.72, 1.0),
+                    solid: true,
+                ),
+                // Rusted storm drainpipe in NE brick corner
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/rusted_drainpipe.png"),
+                    pos: (202.0, 162.0),
+                    size: (34.0, 96.0),
+                    collider_half: Some((12.0, 20.0)),
+                    z: 2.6,
+                    color_rgba: (0.76, 0.68, 0.64, 1.0),
+                    solid: true,
+                ),
+                // Stacked apothecary delivery crates along East fence
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/wooden_crates.png"),
+                    pos: (236.0, 32.0),
+                    size: (86.0, 78.0),
+                    collider_half: Some((34.0, 28.0)),
+                    z: 2.5,
+                    color_rgba: (0.76, 0.64, 0.52, 1.0),
+                    solid: true,
+                ),
+                // Municipal town car / court cruiser idling at the South curb
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/police_cruiser.png"),
+                    pos: (148.0, -142.0),
+                    size: (148.0, 74.0),
+                    collider_half: Some((62.0, 26.0)),
+                    z: 2.5,
+                    color_rgba: (0.74, 0.78, 0.86, 1.0),
+                    solid: true,
+                ),
+                // Cast-iron streetlamp in the rain
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/streetlamp.png"),
+                    pos: (14.0, -136.0),
+                    size: (44.0, 108.0),
+                    collider_half: Some((10.0, 12.0)),
+                    z: 2.8,
+                    color_rgba: (0.86, 0.88, 0.92, 1.0),
+                    solid: true,
+                ),
+                // Corner coin phone booth in SW alley mouth
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/phone_booth.png"),
+                    pos: (-188.0, -146.0),
+                    size: (58.0, 96.0),
+                    collider_half: Some((20.0, 28.0)),
+                    z: 2.6,
+                    color_rgba: (0.82, 0.78, 0.78, 1.0),
+                    solid: true,
+                ),
+            ],
+            characters: [
+                // Nervous Superior Court Bailiff Frank Corso guarding the Judge's car
+                SceneCharacter(
+                    id: "corso",
+                    display_name: "Bailiff Frank Corso",
+                    nameplate: Some("Bailiff Corso"),
+                    sprite_path: "sprites/corso.png",
+                    fallback_rgb: (0.58, 0.68, 0.80),
+                    pos: (78.0, -68.0),
+                    sprite_size: (68.0, 68.0),
+                    collider_half: Some((14.0, 14.0)),
+                    resting_bpm: Some(86.0),
+                    dialogue_node: "talk_corso_hub",
+                    interact_radius: 76.0,
+                    nameplate_rgb: (0.78, 0.86, 0.96),
+                ),
+            ],
+            clues: [
+                // Chauffeur / Bailiff dispatch clipboard resting by the car fender
+                SceneClue(
+                    id: "alley_towncar_log",
+                    label: "Court Town-Car Dispatch Log",
+                    node_id: "inspect_towncar_log",
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (154.0, -84.0),
+                    size: (36.0, 30.0),
+                    z: 2.9,
+                    color_rgba: (0.90, 0.92, 0.96, 1.0),
+                    collider_half: None,
+                    interact_radius: 76.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+                // Sense-gated shattered silver-nitrate ampoule & charred warrant at the NE drainpipe!
+                SceneClue(
+                    id: "alley_silver_ampoule",
+                    label: "Drainpipe Grate: Silver Vial & Burned Warrant",
+                    node_id: "inspect_silver_ampoule",
+                    sprite_path: Some("props/absinthe_tray.png"),
+                    pos: (162.0, 146.0),
+                    size: (44.0, 38.0),
+                    z: 2.8,
+                    color_rgba: (0.88, 0.94, 1.0, 0.96),
+                    collider_half: None,
+                    interact_radius: 76.0,
+                    requires_blood_sight_unless_clue: Some("dispensary_ledger"),
+                    blood_echo_alpha: Some(0.72),
+                ),
+            ],
+            blood_echoes: [
+                // Glowing [Tab] trail from the Salon service door straight across the wet cobbles to the NE drainpipe
+                SceneBloodEcho(
+                    pos: (-204.0, -8.0),
+                    size: (40.0, 22.0),
+                    alpha: 0.56,
+                    phase_offset: 0.0,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: 28.0,
+                ),
+                SceneBloodEcho(
+                    pos: (-96.0, 44.0),
+                    size: (44.0, 22.0),
+                    alpha: 0.58,
+                    phase_offset: 0.7,
+                    sprite_path: Some("props/echo_drops.png"),
+                    rotation_deg: 24.0,
+                ),
+                SceneBloodEcho(
+                    pos: (28.0, 96.0),
+                    size: (40.0, 22.0),
+                    alpha: 0.60,
+                    phase_offset: 1.4,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: 22.0,
+                ),
+                SceneBloodEcho(
+                    pos: (116.0, 132.0),
+                    size: (46.0, 22.0),
+                    alpha: 0.64,
+                    phase_offset: 2.0,
+                    sprite_path: Some("props/echo_smear.png"),
+                    rotation_deg: 18.0,
+                ),
+                SceneBloodEcho(
+                    pos: (162.0, 146.0),
+                    size: (66.0, 50.0),
+                    alpha: 0.72,
+                    phase_offset: 2.6,
+                    sprite_path: Some("props/echo_pool.png"),
+                ),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_alley_to_salon",
+                    label: "Back Inside Apothecary Salon",
+                    pos: (-286.0, -24.0),
+                    size: (18.0, 74.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "madams_salon",
+                    target_spawn: (222.0, -24.0),
+                    glow_rgb: (0.92, 0.44, 0.58),
+                ),
+            ],
+        ),
+    ],
+)

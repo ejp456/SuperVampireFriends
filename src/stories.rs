@@ -20,6 +20,9 @@ const EMBEDDED_CASE_01_SCENES: &str = include_str!("../assets/scenes/case_01_sce
 const EMBEDDED_CASE_02: &str = include_str!("../assets/cases/case_02.ron");
 const EMBEDDED_CASE_02_SCENES: &str = include_str!("../assets/scenes/case_02_scenes.ron");
 
+const EMBEDDED_CASE_03: &str = include_str!("../assets/cases/case_03.ron");
+const EMBEDDED_CASE_03_SCENES: &str = include_str!("../assets/scenes/case_03_scenes.ron");
+
 #[derive(Debug, Clone, Copy)]
 pub struct StoryEntry {
     pub id: &'static str,
@@ -54,6 +57,16 @@ pub const STORIES: &[StoryEntry] = &[
         embedded_case_ron: EMBEDDED_CASE_02,
         scenes_rel_path: "assets/scenes/case_02_scenes.ron",
         embedded_scenes_ron: EMBEDDED_CASE_02_SCENES,
+    },
+    StoryEntry {
+        id: "case_03",
+        setting_line: "1:45 AM  •  Boudoir 4, Apothecary Salon & Red-Lantern Alley",
+        synopsis: "Superior Court Judge Harlan Cross drops dead with silver-burnt ash on his lips after drinking from an indentured blood-courtesan who is still very much alive.",
+        accent_rgb: (0.82, 0.44, 0.90),
+        case_rel_path: "assets/cases/case_03.ron",
+        embedded_case_ron: EMBEDDED_CASE_03,
+        scenes_rel_path: "assets/scenes/case_03_scenes.ron",
+        embedded_scenes_ron: EMBEDDED_CASE_03_SCENES,
     },
 ];
 

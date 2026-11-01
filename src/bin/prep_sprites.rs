@@ -282,9 +282,93 @@ fn dyn_crop(img: &RgbaImage, x: u32, y: u32, w: u32, h: u32) -> RgbaImage {
     out
 }
 
+/// Extracts a chroma-keyed character/corpse sprite and centers it onto a square
+/// `canvas_dim x canvas_dim` transparent RGBA canvas so Bevy square `sprite_size` renders aspect-true.
+fn process_square_sprite(
+    input_path: &Path,
+    output_path: &Path,
+    canvas_dim: u32,
+) -> Result<(), String> {
+    let tight = process_prop_tight(input_path, output_path, canvas_dim)?;
+    let (tw, th) = tight.dimensions();
+    let mut square: RgbaImage = ImageBuffer::from_pixel(canvas_dim, canvas_dim, Rgba([0, 0, 0, 0]));
+    let off_x = ((canvas_dim.saturating_sub(tw)) / 2) as i64;
+    let off_y = ((canvas_dim.saturating_sub(th)) / 2) as i64;
+    image::imageops::overlay(&mut square, &tight, off_x, off_y);
+    square
+        .save(output_path)
+        .map_err(|e| format!("Failed saving square sprite {}: {e}", output_path.display()))?;
+    println!(
+        "Saved square sprite ({canvas_dim}x{canvas_dim}) -> {}",
+        output_path.display()
+    );
+    Ok(())
+}
+
+fn process_portrait(input_path: &Path, output_path: &Path, dim: u32) -> Result<(), String> {
+    let dyn_img = image::open(input_path)
+        .map_err(|e| format!("Failed to open {}: {e}", input_path.display()))?;
+    let resized = image::imageops::resize(&dyn_img.to_rgba8(), dim, dim, FilterType::Lanczos3);
+    if let Some(parent) = output_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    resized
+        .save(output_path)
+        .map_err(|e| format!("Failed saving portrait {}: {e}", output_path.display()))?;
+    println!("Saved portrait ({dim}x{dim}) -> {}", output_path.display());
+    Ok(())
+}
+
+fn run_case03_assets(raw_dir: &Path, assets: &Path) -> Result<(), String> {
+    let portraits = [
+        ("sabine_portrait_1793566404653.jpg", "portraits/sabine_portrait.png"),
+        ("vespera_portrait_1793566421879.jpg", "portraits/vespera_portrait.png"),
+        ("corso_portrait_1793566435182.jpg", "portraits/corso_portrait.png"),
+    ];
+    for (src, dst) in portraits {
+        process_portrait(&raw_dir.join(src), &assets.join(dst), 256)?;
+    }
+
+    let square_sprites = [
+        ("sabine_raw_1793566453452.jpg", "sprites/sabine.png", 128u32),
+        ("vespera_raw_1793566468562.jpg", "sprites/vespera.png", 128u32),
+        ("corso_raw_1793566494794.jpg", "sprites/corso.png", 128u32),
+        ("cross_corpse_raw_1793566393750.jpg", "sprites/cross_corpse.png", 160u32),
+    ];
+    for (src, dst, dim) in square_sprites {
+        process_square_sprite(&raw_dir.join(src), &assets.join(dst), dim)?;
+    }
+
+    let props = [
+        ("velvet_divan_raw_1793566406512.jpg", "props/velvet_divan.png", 208u32),
+        ("absinthe_tray_raw_1793566419293.jpg", "props/absinthe_tray.png", 128u32),
+        ("judicial_briefcase_raw_1793566433961.jpg", "props/judicial_briefcase.png", 128u32),
+    ];
+    for (src, dst, max_dim) in props {
+        process_prop_tight(&raw_dir.join(src), &assets.join(dst), max_dim)?;
+    }
+    Ok(())
+}
+
 fn main() {
-    let brain = Path::new(r"C:\Users\etaip\.gemini\antigravity\brain\488cefb8-dfa2-4774-8a2b-045f4d53c2dc");
-    let assets = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"));
+    let assets = Path::new("assets");
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 2 && args[1] == "--case03" {
+        let raw_dir = args
+            .get(2)
+            .map(Path::new)
+            .unwrap_or_else(|| Path::new("assets/raw/case_03"));
+        if let Err(e) = run_case03_assets(raw_dir, assets) {
+            eprintln!("ERROR: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    let raw_dir = args
+        .get(1)
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("assets/raw"));
 
     // 1. Blood & Supernatural Echo Assets (save both rich crimson PNG + multi-spectrum echo PNG)
     let blood_jobs = [
@@ -315,7 +399,7 @@ fn main() {
     ];
 
     for (src, crimson_dst, echo_dst, max_dim) in blood_jobs {
-        let img = match process_prop_tight(&brain.join(src), &assets.join(crimson_dst), max_dim) {
+        let img = match process_prop_tight(&raw_dir.join(src), &assets.join(crimson_dst), max_dim) {
             Ok(i) => i,
             Err(e) => {
                 eprintln!("ERROR: {e}");
@@ -357,7 +441,7 @@ fn main() {
     ];
 
     for (src, dst, max_dim) in prop_jobs {
-        if let Err(e) = process_prop_tight(&brain.join(src), &assets.join(dst), max_dim) {
+        if let Err(e) = process_prop_tight(&raw_dir.join(src), &assets.join(dst), max_dim) {
             eprintln!("ERROR: {e}");
             std::process::exit(1);
         }

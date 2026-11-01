@@ -1,0 +1,1055 @@
+CaseData(
+    title: "THE GILDED VEIN",
+    subtitle: "1:45 AM",
+    opening_node: "boudoir_arrival",
+    clues: [
+        ClueDef(
+            id: "ash_scorched_fangs",
+            title: "Ash-Scorched Fangs & Courtroom Rouge",
+            summary: "Judge Cross wore daytime mortal greasepaint and a wrist pulse-warmer—he was a closeted vampire seared internally the instant he swallowed.",
+        ),
+        ClueDef(
+            id: "argyria_nailbeds",
+            title: "Sabine's Silver-Blue Nailbeds",
+            summary: "Acute bluish-silver argyria under mortal Sabine's nails and wormwood dregs prove her living bloodstream was dosed with chelated silver.",
+        ),
+        ClueDef(
+            id: "pried_judicial_briefcase",
+            title: "Missing Sun-Cell Warrant Stub",
+            summary: "Cross's calfskin briefcase was unlocked with its brass key; the carbon stub for State v. Lucian Vespera remains, its signed original torn out.",
+        ),
+        ClueDef(
+            id: "stolen_ward_contract",
+            title: "Sabine's Stolen Wardship Bond",
+            summary: "Sabine admits she took Cross's key as he choked only to reclaim her & her dead sister's Debt-Thrall contract—the warrant was already gone.",
+        ),
+        ClueDef(
+            id: "dispensary_ledger",
+            title: "1:15 AM Wormwood Tonic Entry",
+            summary: "The salon ledger trades Cross's free visits for rigged Wardship rulings and logs Madame Vespera pouring Boudoir 4's wormwood draught at 1:15 AM.",
+        ),
+        ClueDef(
+            id: "bailiff_car_manifest",
+            title: "1:10 AM Private Salon Confrontation",
+            summary: "Bailiff Corso's town-car log confirms Cross stopped alone with Vespera at 1:10 AM to wave her brother's Sun-Cell warrant before entering Boudoir 4.",
+        ),
+        ClueDef(
+            id: "hidden_silver_ampoule",
+            title: "40% Silver Ampoule & Charred Warrant",
+            summary: "Stuffed behind the alley drainpipe: a crushed vial of chelated colloidal silver wrapped inside the half-burned Sun-Cell Extradition Order.",
+        ),
+        ClueDef(
+            id: "silver_nitrate_stain",
+            title: "Halide Burn Under Vespera's Glove",
+            summary: "Beneath Madame Vespera's left black opera glove is an indelible violet-black silver-nitrate stain from snapping the concentrated ampoule.",
+        ),
+    ],
+    nodes: [
+        // ---------------- OPENING ARRIVAL ----------------
+        DialogueNode(
+            id: "boudoir_arrival",
+            speaker: "SABINE MARLOWE",
+            active_suspect_id: Some("sabine"),
+            text: "\"Don't come any closer, {detective}—please! Judge Cross took one drink from my collarbone, coughed grey ash onto the rug, and dropped dead! Madame Vespera says my blood went bad!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 98.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Richey),
+                    requires_blood_sight: false,
+                    text: "Grey ash on a drinker's tongue while the mortal vessel still breathes? Something metallic stings the air. Press [Tab] to awaken {sense}.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(LuckerAndRon),
+                    requires_blood_sight: false,
+                    text: "Det. Lucker (Ghost): \"A Superior Court magistrate belly-up in a blood parlor! His shade is smoldering on that rug, Ron—hit [Tab] for Phantom Sight.\"",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Pinckney),
+                    requires_blood_sight: false,
+                    text: "Star-anise absinthe, burnt bone, and scorched metal—not natural rot. Press [Tab] to track with Lupine Scent.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Zombie),
+                    requires_blood_sight: false,
+                    text: "Mortician's pancake makeup on a sitting judge's jaw, and eschar ash in his throat. Press [Tab] for Mortis Sight.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Breathe slow, Miss Marlowe. Nobody touches the body or that goblet until I look them over.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- BOUDOIR 4: JUDGE CROSS CORPSE ----------------
+        DialogueNode(
+            id: "inspect_cross_corpse",
+            speaker: "JUDGE HARLAN CROSS (CORPSE)",
+            active_suspect_id: None,
+            text: "Superior Court Judge Harlan Cross lies sprawled in bespoke pinstripe wool. Sweat-streaked courtroom greasepaint hides marble-pale skin and a battery pulse-warmer strapped to his wrist; his retracted fangs are blistered into silver-black ash.",
+            grants_clues: ["ash_scorched_fangs"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "The hanging judge of the 14th Ward was a closeted vampire passing as mortal on the daytime bench.",
+                ),
+                PassiveVoice(
+                    faculty: Some(Sanguine),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: true,
+                    text: "Under {sense}, scorched silver sparks cling to his lips and trail back toward the wormwood tray.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Sanguine] Examine the blistered ash pattern inside his throat and vest pocket.",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_cross_throat",
+                        faculty: Sanguine,
+                        dc: 10,
+                        hunger_cost: 0.4,
+                        success_node: "cross_throat_success",
+                        failure_node: "cross_throat_fail",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Zombie Exclusive] Lay cold fingers on Cross's jaw and briefcase chain for a Mortis flash.",
+                    next_node: "cross_zombie_psychometry",
+                    requires_character: Some(Zombie),
+                ),
+                DialogueChoice(
+                    label: "[Lucker & Ron Exclusive] Let Ghost Lucker interrogate the Judge's furious ash-shade.",
+                    next_node: "cross_ghost_seance",
+                    requires_character: Some(LuckerAndRon),
+                ),
+                DialogueChoice(
+                    label: "Step back from the Judge's body.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "cross_throat_success",
+            speaker: "FORENSIC INSTINCT",
+            active_suspect_id: None,
+            text: "Not contact poison on his collar—chelated silver suspended in warm mortal blood seared his esophagus mid-swallow. Strangely, his silk vest pocket is turned slightly outward, its brass briefcase key missing.",
+            grants_clues: ["ash_scorched_fangs"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Note the picked vest pocket and keep searching Boudoir 4.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "cross_throat_fail",
+            speaker: "FORENSIC INSTINCT",
+            active_suspect_id: None,
+            text: "Acrid silver-ash fumes bite at your {strain} before you can read the deeper tissue burn, though Cross's secret vampirism is unmistakable.",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Clear your throat and inspect the rest of the suite.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "cross_zombie_psychometry",
+            speaker: "DET. GUINAN — MORTIS PSYCHOMETRY",
+            active_suspect_id: None,
+            text: "Two distinct post-mortem echoes: ten minutes earlier in the outer Salon, black velvet opera gloves sliding a signed warrant from his briefcase—then inside Boudoir 4, trembling bare fingers slipping his brass key from his vest as he fell.",
+            grants_clues: ["ash_scorched_fangs"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 124.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.4,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Rise slowly and glance from Sabine's bare hands toward the outer Salon.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "cross_ghost_seance",
+            speaker: "ECHO IN RON'S EAR",
+            active_suspect_id: None,
+            text: "Det. Lucker: \"Whoa, grumpy magistrate! His shade keeps snarling one thing, Ron: 'Vespera smiled when I showed her Lucian's Sun-Cell order at the bar—she sent the girl in primed like a silver bullet!'\"",
+            grants_clues: ["ash_scorched_fangs"],
+            pulse_trigger: None,
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Quiet down, Lucker—now let's find physical proof that holds up in court.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- BOUDOIR 4: WORMWOOD GOBLET & TRAY ----------------
+        DialogueNode(
+            id: "inspect_boudoir_goblet",
+            speaker: "WORMWOOD GOBLET & TRAY",
+            active_suspect_id: None,
+            text: "A tarnished tray holds an empty crystal goblet crusted with milky emerald star-anise sugar—and a faint metallic mirror sheen along the rim. Across the rug, Sabine's fingernails show the same pale bluish-silver tint: acute argyria.",
+            grants_clues: ["argyria_nailbeds"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Chelated colloidal silver won't kill a mortal woman in one glass—it just turns her nailbeds slate-blue while turning her veins lethal to an undead drinker.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Richey Exclusive] Draw a shallow breath over the crystal rim with Vampire Senses.",
+                    next_node: "goblet_richey_fang_ache",
+                    requires_character: Some(Richey),
+                ),
+                DialogueChoice(
+                    label: "[Deduction] Reconstruct how the bitter metal taste was masked from the drinker.",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_goblet_chemistry",
+                        faculty: Deduction,
+                        dc: 9,
+                        hunger_cost: 0.0,
+                        success_node: "goblet_chemistry_success",
+                        failure_node: "goblet_chemistry_fail",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "Set the crystal goblet down.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "goblet_richey_fang_ache",
+            speaker: "DET. RICHEY — VAMPIRE INSTINCT",
+            active_suspect_id: None,
+            text: "Your upper canines throb white-hot at a single whiff. Forty-percent photographer's silver nitrate chelated in sweet wormwood syrup—mixed behind an apothecary bar by someone who knew Judge Cross wouldn't survive one mouthful.",
+            grants_clues: ["argyria_nailbeds"],
+            pulse_trigger: None,
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Steady your {strain} and check who poured Boudoir 4's drinks.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "goblet_chemistry_success",
+            speaker: "FORENSIC DEDUCTION",
+            active_suspect_id: None,
+            text: "Heavy star-anise and burnt sugar completely disguise metallic silver salts on a human tongue. Sabine could have drunk the whole glass believing it was a routine calming tonic.",
+            grants_clues: ["argyria_nailbeds"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Log the wormwood goblet in the Crimson Ledger.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "goblet_chemistry_fail",
+            speaker: "FORENSIC DEDUCTION",
+            active_suspect_id: None,
+            text: "The licorice reek of wormwood overwhelms the subtler compound, though the silver residue on the glass is undeniable.",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.2,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Check the Salon dispensary bar for the source bottle.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- BOUDOIR 4: JUDICIAL BRIEFCASE ----------------
+        DialogueNode(
+            id: "inspect_judicial_briefcase",
+            speaker: "CALFSKIN BRIEFCASE",
+            active_suspect_id: None,
+            text: "Monogrammed 'H. CROSS — SUPERIOR COURT.' The brass lock isn't jimmy-scratched—it was opened cleanly with a key. Inside sit 9:00 AM forfeiture notes on the 14th Ward clubs and a torn carbon stub: 'STATE v. LUCIAN VESPERA — SUN-CELL EXTRADITION.' The signed original is gone.",
+            grants_clues: ["pried_judicial_briefcase"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Across the rug, Sabine's breath catches the second your fingers touch that brass lock.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Close the flap and question Sabine or Madame Vespera about the missing warrant.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- BOUDOIR 4: INTERROGATING SABINE MARLOWE ----------------
+        DialogueNode(
+            id: "talk_sabine_hub",
+            speaker: "SABINE MARLOWE",
+            active_suspect_id: Some("sabine"),
+            text: "Sabine clutches her lace shawl over two fresh crimson punctures at her collarbone. \"He owned my contract, {detective}—just like he signed away my sister Celia's life last winter. I hated him, God help me, I did! But I didn't poison him!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 92.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "92 BPM—frightened, exhausted, yet completely steady when she denies poisoning him.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Look at your silver-blue nails, Sabine. Who poured that wormwood goblet before Cross came in?\"",
+                    next_node: "sabine_tonic_truth",
+                    requires_clue: Some("argyria_nailbeds"),
+                ),
+                DialogueChoice(
+                    label: "\"Judge Cross's briefcase was unlocked with a key, Sabine—not forced. Did you open it?\"",
+                    next_node: "sabine_briefcase_spike",
+                    requires_clue: Some("pried_judicial_briefcase"),
+                    hide_if_clue: Some("stolen_ward_contract"),
+                ),
+                DialogueChoice(
+                    label: "\"Walk me through Cross's arrival again—did he come straight here from his town car?\"",
+                    next_node: "sabine_timeline_note",
+                ),
+                DialogueChoice(
+                    label: "[Accuse Sabine] \"You dosed your own veins to avenge your sister and robbed his briefcase. Hands behind your back.\"",
+                    next_node: "ending_sabine_framed",
+                    requires_clue: Some("argyria_nailbeds"),
+                ),
+                DialogueChoice(
+                    label: "\"Stay on the divan, Sabine. Don't drink anything else tonight.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "sabine_tonic_truth",
+            speaker: "SABINE MARLOWE",
+            active_suspect_id: Some("sabine"),
+            text: "Sabine stares in horror at her slate-tinted fingertips. \"Madame Vespera brought that glass in herself at 1:15! She said Judge Cross was in a foul temper and doubled the sugar so I wouldn't flinch. She poisoned *me* to kill him?!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 94.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Genuine shock—no deception spike. She had no idea silver was in that wormwood draught.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Let's talk about what else happened in this room.\"",
+                    next_node: "talk_sabine_hub",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "sabine_timeline_note",
+            speaker: "SABINE MARLOWE",
+            active_suspect_id: Some("sabine"),
+            text: "\"No! I heard his voice through the Salon curtain around ten past one—arguing low and vicious with Madame Vespera by the bar. Then she brought my green tonic, and he stepped in five minutes later wiping sweat off his makeup.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 88.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Back to the rest of your statement.\"",
+                    next_node: "talk_sabine_hub",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "sabine_briefcase_spike",
+            speaker: "SABINE MARLOWE",
+            active_suspect_id: Some("sabine"),
+            text: "Sabine's hand flies to her robe pocket. \"I—no! I never went near his leather bag! Why would I touch a judge's court papers while he was choking on the rug?!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 138.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 1,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "138 BPM LIE SPIKE! Her heart hammers like a trappedfinch—she's hiding what she took from that briefcase.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Pulse] \"Your pulse just jumped off the chart, Sabine. Show me what's in your pocket—I'm hunting a killer, not a debtor.\"",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_sabine_contract",
+                        faculty: Pulse,
+                        dc: 10,
+                        hunger_cost: 0.2,
+                        success_node: "sabine_confesses_contract",
+                        failure_node: "sabine_panics_contract",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Deduction] \"Cross was a vampire killed by silver—not a stolen key. Give me the truth before Vespera pins the murder on you.\"",
+                    next_node: "sabine_confesses_contract",
+                    requires_clue: Some("ash_scorched_fangs"),
+                ),
+                DialogueChoice(
+                    label: "\"Think carefully, Sabine. I'll come back to that briefcase.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "sabine_panics_contract",
+            speaker: "SABINE MARLOWE",
+            active_suspect_id: Some("sabine"),
+            text: "Tears spill down Sabine's cheeks as she clutches her silk pocket tighter, still terrified you'll haul her back to court—Wait: seeing your steady gaze, she finally pulls out a ribboned indenture sheet with shaking fingers.",
+            grants_clues: ["stolen_ward_contract"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 104.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Read the indenture sheet and ask what was missing inside the briefcase.",
+                    next_node: "sabine_confesses_contract",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "sabine_confesses_contract",
+            speaker: "SABINE MARLOWE",
+            active_suspect_id: Some("sabine"),
+            text: "Sabine pulls a crumpled court bond from her robe: 'In re Wardship of Sabine & Celia Marlowe.' \"When he collapsed, I slipped his brass key off his vest just to take my freedom paper! I swear on Celia's grave, {detective}—that red-sealed Vespera extradition paper was *already torn out* when I opened the flap!\"",
+            grants_clues: ["stolen_ward_contract"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "sabine",
+                target_bpm: 84.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: -0.2,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Her pulse settles to 84 BPM. Whoever ripped out Lucian Vespera's extradition order got into Cross's briefcase *before* he entered Boudoir 4.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Keep your sister's paper tucked away, Sabine. I'm paying Madame Vespera a visit.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- SALON HOTSPOT: DISPENSARY LEDGER ----------------
+        DialogueNode(
+            id: "inspect_dispensary_ledger",
+            speaker: "TONIC BAR & WARDSHIP LEDGER",
+            active_suspect_id: None,
+            text: "Bound in oxblood leather beside the absinthe fountain. One column pairs Judge Cross's 'Gratis Suite 4 Appointments' with rubber-stamped Debt-Thrall Wardships; the apothecary margin logs: '1:15 AM — Boudoir 4 Wormwood Calming Draught — Mixed personally by Mme. C. Vespera.'",
+            grants_clues: ["dispensary_ledger"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Sanguine),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: true,
+                    text: "Glowing droplets of spilled metallic tonic lead straight from behind this bar toward the East alley service door!",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Pinckney Exclusive] Flare Lupine Scent over the mahogany bar rail and trace the chemical spoor.",
+                    next_node: "salon_pinckney_spoor",
+                    requires_character: Some(Pinckney),
+                ),
+                DialogueChoice(
+                    label: "Shut the ledger and follow the trail toward Madame Vespera or the East alley door.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "salon_pinckney_spoor",
+            speaker: "DET. PINCKNEY — LUPINE SPOOR",
+            active_suspect_id: None,
+            text: "Sharp ozone-silver nitrate, charred parchment smoke, and expensive French violet glove powder—tracked in hurried heel-clicks straight out the East service door into the rain.",
+            grants_clues: ["dispensary_ledger"],
+            pulse_trigger: None,
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Follow the violet-and-silver scent out to Red-Lantern Alley.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- SALON: INTERROGATING MADAME COLETTE VESPERA ----------------
+        DialogueNode(
+            id: "talk_vespera_hub",
+            speaker: "MADAME COLETTE VESPERA",
+            active_suspect_id: Some("vespera"),
+            text: "Madame Vespera stands poised in plum velvet and elbow-length black opera gloves, her pulse an ice-water 64 BPM. \"A tragic scandal, {detective}. Judge Cross ruled tomorrow on our 14th Ward competitors—losing him costs me a fortune. Clearly the Marlowe girl poisoned herself to spite him for her sister.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vespera",
+                target_bpm: 64.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Nobody wears heavy black velvet opera gloves while mixing sticky sugar-absinthe behind a bar—unless she's hiding her skin.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Your own ledger says *you* mixed Boudoir 4's wormwood draught at 1:15 AM, Madame.\"",
+                    next_node: "vespera_ledger_deflect",
+                    requires_clue: Some("dispensary_ledger"),
+                ),
+                DialogueChoice(
+                    label: "\"Bailiff Corso logs Cross meeting you alone at 1:10 AM—waving a Sun-Cell warrant for Lucian Vespera.\"",
+                    next_node: "vespera_warrant_spike",
+                    requires_clue: Some("bailiff_car_manifest"),
+                ),
+                DialogueChoice(
+                    label: "[Pulse / Deduction] \"Peel off that left black opera glove, Colette. Let's see if raw silver nitrate stained your thumb.\"",
+                    next_node: "",
+                    requires_clue: Some("dispensary_ledger"),
+                    hide_if_clue: Some("silver_nitrate_stain"),
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_vespera_glove",
+                        faculty: Deduction,
+                        dc: 10,
+                        hunger_cost: 0.3,
+                        success_node: "vespera_glove_exposed",
+                        failure_node: "vespera_glove_refusal",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Confront Vespera] Present the alley silver ampoule, charred warrant & Sabine's exonerated bond.",
+                    next_node: "vespera_final_confrontation",
+                    requires_clue: Some("hidden_silver_ampoule"),
+                ),
+                DialogueChoice(
+                    label: "[Confront Vespera] Indict her on the silver-halide glove burn & 1:15 AM tonic pour.",
+                    next_node: "vespera_final_confrontation",
+                    requires_clue: Some("silver_nitrate_stain"),
+                    hide_if_clue: Some("hidden_silver_ampoule"),
+                ),
+                DialogueChoice(
+                    label: "\"Keep the Salon doors barred, Madame. I'm not finished looking around.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "vespera_ledger_deflect",
+            speaker: "MADAME COLETTE VESPERA",
+            active_suspect_id: Some("vespera"),
+            text: "\"Of course I poured her calming green, {detective}—green wormwood, sugar, and chilled water. Whatever foul apothecary salt ended up in that goblet was added behind closed curtains in Boudoir 4.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vespera",
+                target_bpm: 96.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "64 up to 96 BPM—her silk-gloved left thumb rubs unconsciously against her palm.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"We'll see where the bottle went.\"",
+                    next_node: "talk_vespera_hub",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "vespera_warrant_spike",
+            speaker: "MADAME COLETTE VESPERA",
+            active_suspect_id: Some("vespera"),
+            text: "For one razor-thin second, Vespera's glacial mask cracks. \"Frank Corso is a drunken chauffeur! Harlan merely dropped his coat off—he never mentioned my brother Lucian!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vespera",
+                target_bpm: 134.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 1,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "134 BPM LIE SPIKE! Mentioning Lucian Vespera's Sun-Cell transfer hit dead center.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Your pulse says Harlan showed you that extradition order right here at the bar.\"",
+                    next_node: "talk_vespera_hub",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "vespera_glove_exposed",
+            speaker: "MADAME COLETTE VESPERA",
+            active_suspect_id: Some("vespera"),
+            text: "You catch her left wrist before she can step behind the bar and draw back the velvet cuff. Across her pale thumb blooms an indelible violet-black halide crescent—the unmistakable chemical burn of 40% silver nitrate snapped from a glass ampoule.",
+            grants_clues: ["silver_nitrate_stain"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vespera",
+                target_bpm: 142.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Photographers' silver turns human skin black on contact, Colette—and vampire throats to ash.\"",
+                    next_node: "talk_vespera_hub",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "vespera_glove_refusal",
+            speaker: "MADAME COLETTE VESPERA",
+            active_suspect_id: Some("vespera"),
+            text: "Vespera slips smoothly behind the mahogany counter. \"Bring me a physical murder weapon, {detective}, before you play haberdasher with my evening wear.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vespera",
+                target_bpm: 112.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.3,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Check Red-Lantern Alley outside the East service door with [Tab] ({sense}) to find where she ditched the vial.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Head out the East service door to search Red-Lantern Alley.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- ALLEY HOTSPOTS & BAILIFF CORSO ----------------
+        DialogueNode(
+            id: "inspect_towncar_log",
+            speaker: "COURT TOWN-CAR DISPATCH LOG",
+            active_suspect_id: None,
+            text: "Rain beads on Bailiff Corso's waxed clipboard: '1:08 AM — Curb arrival, Gilded Vein rear door. 1:10 AM — Judge Cross enters Salon alone with briefcase to confer w/ Mme. Vespera re: Vespera Extradition. 1:20 AM — Judge proceeds to Suite 4.'",
+            grants_clues: ["bailiff_car_manifest"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Tuck the carbon copy under your coat and question Bailiff Corso.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "inspect_silver_ampoule",
+            speaker: "DRAINPIPE GRATE — HIDDEN DISCARD",
+            active_suspect_id: None,
+            text: "Wedged behind the rusted storm pipe out of the rain: a snapped amber apothecary ampoule labeled '40% CHELATED COLLOIDAL SILVER — APOTHECARY RESERVE,' wrapped inside the half-charred original 'STATE v. LUCIAN VESPERA — SUN-CELL EXTRADITION' bearing Judge Cross's wet ink signature!",
+            grants_clues: ["hidden_silver_ampoule"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 1,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "There's the whole murder engine: Cross took Vespera's bribes, then brought a signed daylight-cell death sentence for her brother anyway—so she turned Sabine's bloodstream into a silver trap and stole the warrant.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Bag the silver ampoule and charred warrant—time to confront Madame Vespera!",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "talk_corso_hub",
+            speaker: "BAILIFF FRANK CORSO",
+            active_suspect_id: Some("corso"),
+            text: "Bailiff Corso hunches beside the Judge's black coupe, rainwater dripping off his homburg hat. \"Keep your voice down, {detective}! If the morning papers print that Judge Cross croaked in a blood house, the Chief Justice'll skin me alive! He went straight into Suite 4—nobody else saw him!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "corso",
+                target_bpm: 126.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 1,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "126 BPM LIE SPIKE right out of the gate—he's covering his own neck over that ten-minute Salon stop.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Your own fender clipboard logs a 1:10 AM private Salon meeting with Vespera, Frank. Spill it.\"",
+                    next_node: "corso_spills_truth",
+                    requires_clue: Some("bailiff_car_manifest"),
+                ),
+                DialogueChoice(
+                    label: "[Nocturne] \"Lying to a night investigator puts you in the cell next to the killer, Bailiff. Who met Cross at 1:10?\"",
+                    next_node: "",
+                    hide_if_clue: Some("bailiff_car_manifest"),
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_intimidate_corso",
+                        faculty: Nocturne,
+                        dc: 9,
+                        hunger_cost: 0.3,
+                        success_node: "corso_spills_truth",
+                        failure_node: "corso_stammers",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "\"Did anyone come out that Salon service door after 1:20 AM?\"",
+                    next_node: "corso_alley_sighting",
+                ),
+                DialogueChoice(
+                    label: "\"Stay by the car, Corso. Nobody leaves this alley.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corso_stammers",
+            speaker: "BAILIFF FRANK CORSO",
+            active_suspect_id: Some("corso"),
+            text: "Corso flinches back against the wet fender, eyes darting nervously toward the clipboard resting beside the hood.",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "corso",
+                target_bpm: 130.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.2,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Inspect the clipboard beside the car hood yourself.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corso_spills_truth",
+            speaker: "BAILIFF FRANK CORSO",
+            active_suspect_id: Some("corso"),
+            text: "Corso wipes rain from his jowls and caves. \"Alright, alright! Cross took fifty grand from Vespera last week to bury her brother Lucian's murder appeal—then tonight he walks into her Salon laughing, opens his briefcase, and demands *half the house* or he files Lucian's Sun-Cell transfer at 9:00 AM!\"",
+            grants_clues: ["bailiff_car_manifest"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "corso",
+                target_bpm: 90.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Did you see Vespera come out into this alley afterward?\"",
+                    next_node: "corso_alley_sighting",
+                ),
+                DialogueChoice(
+                    label: "\"Don't move from that bumper until my wagon arrives.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "corso_alley_sighting",
+            speaker: "BAILIFF FRANK CORSO",
+            active_suspect_id: Some("corso"),
+            text: "\"Around 1:35, right before the girl screamed inside—the back service door cracked open, a match flared in the rain toward that NE storm drainpipe, and somebody in dark velvet ducked back in!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "corso",
+                target_bpm: 88.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Check the NE storm drainpipe—awaken [Tab] ({sense}) if the shadows hide what she tossed!",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Search the NE storm drainpipe or head back inside the Salon.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- CLIMAX: FINAL CONFRONTATION WITH MADAME VESPERA ----------------
+        DialogueNode(
+            id: "vespera_final_confrontation",
+            speaker: "MADAME COLETTE VESPERA",
+            active_suspect_id: Some("vespera"),
+            text: "Madame Vespera gazes down at the evidence, her pulse surging to 146 BPM as her polite smile vanishes. \"Harlan Cross grew fat feeding on indentured girls he sentenced here—then dared dangle my brother Lucian over a sunlit prison floor. Kill a vampire judge openly and the Elders raze my block; slip silver into his favorite vessel's wormwood, and it's a tragic bordello overdose. Name your price, {detective}—my patron ledger holds half of City Hall.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vespera",
+                target_bpm: 146.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.2,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "You have the motive, the 1:15 AM tonic pour, Cross's hidden vampirism, and the silver chemistry. Lock the chain of evidence tight.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Deduction] Cuff Vespera on an airtight forensic indictment, seize the Wardship ledger, and free Sabine.",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_final_vespera_arrest",
+                        faculty: Deduction,
+                        dc: 10,
+                        hunger_cost: 0.0,
+                        success_node: "ending_vespera_arrested",
+                        failure_node: "ending_vespera_arrested",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Nocturne] Invoke Midnight Tribunal law—break Vespera's syndicate protection and seize every Debt-Thrall contract.",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_final_nocturne_tribunal",
+                        faculty: Nocturne,
+                        dc: 10,
+                        hunger_cost: 0.5,
+                        success_node: "ending_nocturne_tribunal",
+                        failure_node: "ending_vespera_arrested",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Corrupt Deal] Burn Lucian's charred warrant in the ashtray in exchange for Vespera's City Hall blackmail ledger & Sabine's release.",
+                    next_node: "ending_corrupt_ledger_deal",
+                ),
+            ],
+        ),
+
+        // ---------------- 4 CASE ENDINGS ----------------
+        DialogueNode(
+            id: "ending_vespera_arrested",
+            speaker: "CASE CLOSED — SILVER IN THE WORMWOOD",
+            active_suspect_id: None,
+            text: "Bailiff Corso unlocks his own handcuffs to iron Madame Colette Vespera beside her mahogany bar. With the 40% silver ampoule, charred Sun-Cell warrant, and rigged Debt-Thrall ledger entered into evidence, Sabine Marlowe walks out into the dawn rain a free woman—and every indentured 'wardship' contract on Judge Cross's docket is voided by sunrise. [Press V to play another Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Walk the crime scenes again or press [V] to select another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_nocturne_tribunal",
+            speaker: "CASE CLOSED — RECKONING OF THE ELDER BENCH",
+            active_suspect_id: None,
+            text: "Your supernatural authority shatters Vespera's composure. Terrified of both mortal irons and nocturnal reprisal for using silver inside a sanctioned parlor, Colette surrenders her brother Lucian's hideout, tears up every Debt-Thrall bond in the safe, and confesses on tape before the paddy wagon hits Red-Lantern Alley. [Press V to play another Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back into the rain or press [V] to select another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_sabine_framed",
+            speaker: "CASE OUTCOME — SCAPEGOAT IN SILK",
+            active_suspect_id: None,
+            text: "You snap the cuffs onto Sabine Marlowe's trembling wrists as Madame Vespera pours herself a quiet glass behind the bar. The papers get an open-and-shut vengeance poisoning, Lucian Vespera slips across the state line before 9:00 AM, and a violet-black silver stain stays hidden beneath velvet opera gloves. [Press V to replay or select another Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Re-examine the evidence or press [V] to replay / pick another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_corrupt_ledger_deal",
+            speaker: "CASE OUTCOME — THE PATRON BLACKMAIL LEDGER",
+            active_suspect_id: None,
+            text: "You touch a match to the last corner of Lucian Vespera's extradition order. True to her word, Colette signs Sabine's unconditional release and slides the secret velvet-bound Patron Ledger across the bar—handing you dirt on six magistrates, three aldermen, and half the Night Bench as Cross goes into the ground as 'acute cardiac arrest.' [Press V to select a Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Pocket the blackmail ledger or press [V] to select another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+    ],
+)

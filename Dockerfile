@@ -20,7 +20,11 @@ RUN if [ ! -f web/pkg/vampire_noir_rpg_bg.wasm ]; then \
         && cargo build --release --target wasm32-unknown-unknown --bin vampire_noir_rpg \
         && mkdir -p web/pkg \
         && wasm-bindgen --out-dir web/pkg --target web --no-typescript \
+           --remove-name-section --remove-producers-section \
            target/wasm32-unknown-unknown/release/vampire_noir_rpg.wasm; \
+    fi \
+    && if [ ! -f web/pkg/vampire_noir_rpg_bg.wasm.gz ]; then \
+        gzip -9 -k -f web/pkg/vampire_noir_rpg_bg.wasm web/pkg/vampire_noir_rpg.js; \
     fi
 
 # 2. Compile zero-dependency HTTP + WebSocket Co-op Relay server directly with rustc

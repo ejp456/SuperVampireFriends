@@ -133,10 +133,17 @@ fn handle_connection(
     let path = parts[1].split('?').next().unwrap_or("/");
 
     let mut ws_key: Option<String> = None;
+    let mut accepts_gzip = false;
     for line in lines {
         if let Some((k, v)) = line.split_once(':') {
-            if k.trim().eq_ignore_ascii_case("sec-websocket-key") {
+            let key = k.trim();
+            if key.eq_ignore_ascii_case("sec-websocket-key") {
                 ws_key = Some(v.trim().to_string());
+            } else if key.eq_ignore_ascii_case("accept-encoding") {
+                accepts_gzip = v.split(',').any(|enc| {
+                    let e = enc.trim().to_ascii_lowercase();
+                    (e == "gzip" || e.starts_with("gzip;")) && !e.contains("q=0")
+                });
             }
         }
     }
@@ -157,10 +164,16 @@ fn handle_connection(
         }
     }
 
-    serve_static_file(&mut stream, root, method, path);
+    serve_static_file(&mut stream, root, method, path, accepts_gzip);
 }
 
-fn serve_static_file(stream: &mut TcpStream, root: &Path, method: &str, url_path: &str) {
+fn serve_static_file(
+    stream: &mut TcpStream,
+    root: &Path,
+    method: &str,
+    url_path: &str,
+    accepts_gzip: bool,
+) {
     let clean = url_path.trim_start_matches('/');
     if clean.contains("..") {
         let _ = stream.write_all(
@@ -184,7 +197,14 @@ fn serve_static_file(stream: &mut TcpStream, root: &Path, method: &str, url_path
         }
     };
 
-    let Ok(bytes) = fs::read(&file_path) else {
+    let gz_candidate = PathBuf::from(format!("{}.gz", file_path.display()));
+    let (serve_path, is_gzipped) = if accepts_gzip && gz_candidate.exists() {
+        (gz_candidate, true)
+    } else {
+        (file_path.clone(), false)
+    };
+
+    let Ok(bytes) = fs::read(&serve_path) else {
         let msg = b"Not Found";
         let hdr = format!(
             "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Type: text/plain\r\nContent-Length: {}\r\n\r\n",
@@ -209,10 +229,17 @@ fn serve_static_file(stream: &mut TcpStream, root: &Path, method: &str, url_path
         _ => "application/octet-stream",
     };
 
+    let encoding_hdr = if is_gzipped {
+        "Content-Encoding: gzip\r\nVary: Accept-Encoding\r\n"
+    } else {
+        ""
+    };
+
     let hdr = format!(
         "HTTP/1.1 200 OK\r\n\
          Connection: close\r\n\
          Content-Type: {mime}\r\n\
+         {encoding_hdr}\
          Content-Length: {}\r\n\
          Cache-Control: no-cache\r\n\
          Access-Control-Allow-Origin: *\r\n\r\n",

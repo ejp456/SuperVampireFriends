@@ -1,0 +1,9 @@
+/target
+/web/pkg
+/wasm-bindgen-*
+/wasm-bindgen.tar.gz
+/.git
+/.gitignore
+*.swp
+.DS_Store
+Thumbs.db

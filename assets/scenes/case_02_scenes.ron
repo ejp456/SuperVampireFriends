@@ -1,0 +1,634 @@
+SceneCatalog(
+    story_name: "The Morgue Covenant",
+    initial_scene: "morgue_autopsy",
+    initial_spawn: (-55.0, -52.0),
+    scenes: [
+        // =====================================================================
+        // SCENE 1: CITY MORGUE — SUB-BASEMENT AUTOPSY SUITE (INTERIOR ROOM)
+        // =====================================================================
+        SceneClass(
+            id: "morgue_autopsy",
+            title: "City Morgue — Sub-Basement",
+            environment: Room,
+            walk_bounds: (292.0, 218.0),
+            camera_pan_bounds: (95.0, 75.0),
+            rain_drops: 0,
+            surfaces: [
+                // Cold sterile slate-green morgue tile floor
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (610.0, 464.0),
+                    z: 0.0,
+                    normal_rgba: (0.08, 0.11, 0.12, 1.0),
+                    blood_sight_rgba: (0.05, 0.05, 0.09, 1.0),
+                    neon_flicker: None,
+                ),
+                // Harsh overhead surgical lamp glow pool
+                SceneSurface(
+                    pos: (0.0, 26.0),
+                    size: (320.0, 220.0),
+                    z: 0.4,
+                    normal_rgba: (0.52, 0.78, 0.80, 0.10),
+                    blood_sight_rgba: (0.55, 0.06, 0.16, 0.09),
+                    neon_flicker: Some(0.10),
+                ),
+                // Drained arterial wash near autopsy floor drain
+                SceneSurface(
+                    pos: (34.0, 8.0),
+                    size: (40.0, 30.0),
+                    z: 1.3,
+                    normal_rgba: (0.90, 0.85, 0.85, 0.86),
+                    blood_sight_rgba: (1.0, 0.40, 0.52, 0.98),
+                    neon_flicker: None,
+                    sprite_path: Some("props/blood_pool.png"),
+                ),
+            ],
+            walls: [
+                // North wall (split around elevator/stairs doorway to 13th Precinct at x = 0)
+                SceneWall(pos: (-180.0, 232.0), size: (268.0, 20.0), color_rgb: (0.18, 0.22, 0.24), solid: true),
+                SceneWall(pos: (180.0, 232.0), size: (268.0, 20.0), color_rgb: (0.18, 0.22, 0.24), solid: true),
+                // South wall
+                SceneWall(pos: (0.0, -232.0), size: (630.0, 20.0), color_rgb: (0.18, 0.22, 0.24), solid: true),
+                // West wall
+                SceneWall(pos: (-305.0, 0.0), size: (20.0, 484.0), color_rgb: (0.18, 0.22, 0.24), solid: true),
+                // East wall (split around ambulance loading tunnel to Pier 9 at y = -10)
+                SceneWall(pos: (305.0, 140.0), size: (20.0, 204.0), color_rgb: (0.18, 0.22, 0.24), solid: true),
+                SceneWall(pos: (305.0, -150.0), size: (20.0, 184.0), color_rgb: (0.18, 0.22, 0.24), solid: true),
+            ],
+            props: [
+                // Center stainless-steel morgue autopsy table
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/morgue_autopsy_table.png"),
+                    pos: (0.0, 32.0),
+                    size: (128.0, 74.0),
+                    collider_half: Some((54.0, 24.0)),
+                    z: 2.2,
+                    color_rgba: (0.78, 0.84, 0.86, 1.0),
+                    solid: true,
+                ),
+                // Forensics evidence markers #1 #2 #3 beside the slab
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/crime_chalk_markers.png"),
+                    pos: (-68.0, -6.0),
+                    size: (54.0, 42.0),
+                    z: 1.9,
+                    color_rgba: (0.95, 0.86, 0.32, 1.0),
+                    solid: false,
+                ),
+                // West wall cold-case & intake filing cabinet
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/filing_cabinet.png"),
+                    pos: (-252.0, 95.0),
+                    size: (56.0, 84.0),
+                    collider_half: Some((22.0, 34.0)),
+                    z: 2.6,
+                    color_rgba: (0.45, 0.50, 0.52, 1.0),
+                    solid: true,
+                ),
+                // Coroner's oak ledger desk in the SW corner
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/detective_desk.png"),
+                    pos: (-205.0, -145.0),
+                    size: (108.0, 72.0),
+                    collider_half: Some((46.0, 26.0)),
+                    z: 2.6,
+                    color_rgba: (0.42, 0.30, 0.22, 1.0),
+                    solid: true,
+                ),
+            ],
+            characters: [
+                // Victim on the autopsy slab
+                SceneCharacter(
+                    id: "harlow_corpse",
+                    display_name: "Arthur Harlow's Corpse",
+                    nameplate: None,
+                    sprite_path: "sprites/vance_corpse.png",
+                    fallback_rgb: (0.72, 0.78, 0.80),
+                    pos: (0.0, 38.0),
+                    sprite_size: (78.0, 78.0),
+                    collider_half: None,
+                    resting_bpm: None,
+                    dialogue_node: "inspect_harlow_corpse",
+                    interact_radius: 82.0,
+                    nameplate_rgb: (0.82, 0.88, 0.90),
+                ),
+                // Chief Night Coroner Dr. Evelyn Vale
+                SceneCharacter(
+                    id: "vale",
+                    display_name: "Dr. Evelyn Vale",
+                    nameplate: Some("Dr. Vale"),
+                    sprite_path: "sprites/vale.png",
+                    fallback_rgb: (0.64, 0.84, 0.82),
+                    pos: (148.0, 72.0),
+                    sprite_size: (68.0, 68.0),
+                    collider_half: Some((14.0, 14.0)),
+                    resting_bpm: Some(74.0),
+                    dialogue_node: "talk_vale_hub",
+                    interact_radius: 74.0,
+                    nameplate_rgb: (0.76, 0.94, 0.90),
+                ),
+            ],
+            clues: [
+                // Hidden occult ritual candelabra tucked into the cold-storage alcove (Blood Sight gated!)
+                SceneClue(
+                    id: "morgue_ritual_alcove",
+                    label: "Silver Candelabra & Phial Rack",
+                    node_id: "inspect_ritual_alcove",
+                    sprite_path: Some("props/occult_candelabra.png"),
+                    pos: (218.0, -152.0),
+                    size: (56.0, 66.0),
+                    z: 2.5,
+                    color_rgba: (0.95, 0.82, 0.48, 0.92),
+                    collider_half: Some((18.0, 20.0)),
+                    interact_radius: 72.0,
+                    requires_blood_sight_unless_clue: Some("clue_covenant_seal"),
+                    blood_echo_alpha: Some(0.65),
+                ),
+                // Forged intake toe-tag folder on coroner's desk
+                SceneClue(
+                    id: "morgue_intake_register",
+                    label: "Morgue Intake Register",
+                    node_id: "inspect_morgue_register",
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (-202.0, -138.0),
+                    size: (36.0, 30.0),
+                    z: 3.1,
+                    color_rgba: (0.94, 0.90, 0.76, 1.0),
+                    collider_half: None,
+                    interact_radius: 72.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+            ],
+            blood_echoes: [
+                // Supernatural trail from autopsy table to Dr. Vale's hidden alcove
+                SceneBloodEcho(
+                    pos: (64.0, -14.0),
+                    size: (44.0, 22.0),
+                    alpha: 0.55,
+                    phase_offset: 0.0,
+                    sprite_path: Some("props/echo_drops.png"),
+                    rotation_deg: -32.0,
+                ),
+                SceneBloodEcho(
+                    pos: (126.0, -68.0),
+                    size: (38.0, 24.0),
+                    alpha: 0.52,
+                    phase_offset: 0.8,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: -38.0,
+                ),
+                SceneBloodEcho(
+                    pos: (178.0, -116.0),
+                    size: (42.0, 24.0),
+                    alpha: 0.58,
+                    phase_offset: 1.5,
+                    sprite_path: Some("props/echo_smear.png"),
+                    rotation_deg: -35.0,
+                ),
+                SceneBloodEcho(
+                    pos: (218.0, -152.0),
+                    size: (68.0, 52.0),
+                    alpha: 0.66,
+                    phase_offset: 2.2,
+                    sprite_path: Some("props/echo_pool.png"),
+                ),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_morgue_to_precinct",
+                    label: "Up to 13th Precinct Desk",
+                    pos: (0.0, 212.0),
+                    size: (74.0, 18.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "precinct_office",
+                    target_spawn: (0.0, -165.0),
+                    glow_rgb: (0.92, 0.76, 0.42),
+                ),
+                SceneDoorwaySpec(
+                    id: "door_morgue_to_pier",
+                    label: "Exit Ambulance Tunnel to Pier 9",
+                    pos: (286.0, -10.0),
+                    size: (18.0, 74.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "pier_nine_docks",
+                    target_spawn: (-230.0, -15.0),
+                    glow_rgb: (0.44, 0.78, 0.96),
+                ),
+            ],
+        ),
+
+        // =====================================================================
+        // SCENE 2: 13TH PRECINCT — NIGHT RECORDS DESK (INTERIOR ROOM)
+        // =====================================================================
+        SceneClass(
+            id: "precinct_office",
+            title: "13th Precinct — Night Desk",
+            environment: Room,
+            walk_bounds: (292.0, 218.0),
+            camera_pan_bounds: (95.0, 75.0),
+            rain_drops: 0,
+            surfaces: [
+                // Worn dark walnut precinct floor
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (610.0, 464.0),
+                    z: 0.0,
+                    normal_rgba: (0.13, 0.10, 0.09, 1.0),
+                    blood_sight_rgba: (0.06, 0.06, 0.10, 1.0),
+                    neon_flicker: None,
+                ),
+                // Warm banker-lamp glow across central bullpen
+                SceneSurface(
+                    pos: (-25.0, 30.0),
+                    size: (380.0, 250.0),
+                    z: 0.4,
+                    normal_rgba: (0.86, 0.64, 0.30, 0.09),
+                    blood_sight_rgba: (0.42, 0.08, 0.18, 0.08),
+                    neon_flicker: None,
+                ),
+                // Faded precinct runner rug
+                SceneSurface(
+                    pos: (0.0, -20.0),
+                    size: (176.0, 118.0),
+                    z: 0.7,
+                    normal_rgba: (1.0, 1.0, 1.0, 0.92),
+                    blood_sight_rgba: (0.45, 0.38, 0.52, 1.0),
+                    neon_flicker: None,
+                    sprite_path: Some("props/crimson_rug.png"),
+                ),
+            ],
+            walls: [
+                // North wall
+                SceneWall(pos: (0.0, 232.0), size: (630.0, 20.0), color_rgb: (0.24, 0.20, 0.18), solid: true),
+                // West wall
+                SceneWall(pos: (-305.0, 0.0), size: (20.0, 484.0), color_rgb: (0.24, 0.20, 0.18), solid: true),
+                // South wall (split around stairs down to Morgue at x = 0)
+                SceneWall(pos: (-180.0, -232.0), size: (268.0, 20.0), color_rgb: (0.24, 0.20, 0.18), solid: true),
+                SceneWall(pos: (180.0, -232.0), size: (268.0, 20.0), color_rgb: (0.24, 0.20, 0.18), solid: true),
+                // East wall (split around street exit to Pier 9 at y = 20)
+                SceneWall(pos: (305.0, 155.0), size: (20.0, 174.0), color_rgb: (0.24, 0.20, 0.18), solid: true),
+                SceneWall(pos: (305.0, -135.0), size: (20.0, 214.0), color_rgb: (0.24, 0.20, 0.18), solid: true),
+            ],
+            props: [
+                // Duty Sergeant's oak desk with green banker's lamp & typewriter
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/detective_desk.png"),
+                    pos: (-135.0, 92.0),
+                    size: (116.0, 76.0),
+                    collider_half: Some((48.0, 28.0)),
+                    z: 2.5,
+                    color_rgba: (0.46, 0.32, 0.22, 1.0),
+                    solid: true,
+                ),
+                // Steel evidence & harbor seizure cabinets
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/filing_cabinet.png"),
+                    pos: (-246.0, 138.0),
+                    size: (56.0, 84.0),
+                    collider_half: Some((22.0, 34.0)),
+                    z: 2.5,
+                    color_rgba: (0.44, 0.48, 0.46, 1.0),
+                    solid: true,
+                ),
+                // Interrogation table & chairs in the east bullpen
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/club_table_chairs.png"),
+                    pos: (145.0, 118.0),
+                    size: (96.0, 72.0),
+                    collider_half: Some((38.0, 26.0)),
+                    z: 2.5,
+                    color_rgba: (0.48, 0.34, 0.24, 1.0),
+                    solid: true,
+                ),
+                // Confiscated neon sign & vintage jukebox in evidence corner
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/vintage_jukebox.png"),
+                    pos: (-246.0, -110.0),
+                    size: (60.0, 86.0),
+                    collider_half: Some((24.0, 34.0)),
+                    z: 2.5,
+                    color_rgba: (0.85, 0.62, 0.36, 1.0),
+                    solid: true,
+                ),
+            ],
+            characters: [
+                // Night Records Clerk Clara Moreau
+                SceneCharacter(
+                    id: "clara",
+                    display_name: "Clerk Clara Moreau",
+                    nameplate: Some("Clara (Clerk)"),
+                    sprite_path: "sprites/clara.png",
+                    fallback_rgb: (0.86, 0.32, 0.44),
+                    pos: (-30.0, 96.0),
+                    sprite_size: (68.0, 68.0),
+                    collider_half: Some((14.0, 14.0)),
+                    resting_bpm: Some(82.0),
+                    dialogue_node: "talk_clerk_clara",
+                    interact_radius: 74.0,
+                    nameplate_rgb: (0.94, 0.72, 0.78),
+                ),
+            ],
+            clues: [
+                // Harbor dispatch & private ambulance transfer log on the oak desk
+                SceneClue(
+                    id: "precinct_dispatch_desk",
+                    label: "Dispatch & Ambulance Log",
+                    node_id: "inspect_dispatch_desk",
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (-132.0, 96.0),
+                    size: (36.0, 30.0),
+                    z: 3.1,
+                    color_rgba: (0.95, 0.88, 0.72, 1.0),
+                    collider_half: None,
+                    interact_radius: 76.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+            ],
+            blood_echoes: [
+                // Sea-brine & iron residue bootprints leading from Pier 9 door toward records cabinet
+                SceneBloodEcho(
+                    pos: (210.0, 22.0),
+                    size: (36.0, 22.0),
+                    alpha: 0.48,
+                    phase_offset: 0.3,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: 170.0,
+                ),
+                SceneBloodEcho(
+                    pos: (95.0, 48.0),
+                    size: (36.0, 22.0),
+                    alpha: 0.44,
+                    phase_offset: 1.1,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: 162.0,
+                ),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_precinct_to_morgue",
+                    label: "Down to Sub-Basement Morgue",
+                    pos: (0.0, -212.0),
+                    size: (74.0, 18.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "morgue_autopsy",
+                    target_spawn: (0.0, 165.0),
+                    glow_rgb: (0.52, 0.86, 0.82),
+                ),
+                SceneDoorwaySpec(
+                    id: "door_precinct_to_pier",
+                    label: "Out to Pier 9 Docks",
+                    pos: (286.0, 20.0),
+                    size: (18.0, 74.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "pier_nine_docks",
+                    target_spawn: (-230.0, 95.0),
+                    glow_rgb: (0.44, 0.78, 0.96),
+                ),
+            ],
+        ),
+
+        // =====================================================================
+        // SCENE 3: PIER 9 — FOGBOUND HARBOR DOCKS (EXTERIOR STREET / WATERFRONT)
+        // =====================================================================
+        SceneClass(
+            id: "pier_nine_docks",
+            title: "Pier 9 — Fogbound Docks",
+            environment: Street,
+            walk_bounds: (310.0, 224.0),
+            camera_pan_bounds: (115.0, 82.0),
+            rain_drops: 58,
+            surfaces: [
+                // Rain-slicked pier planking & waterfront cobblestones
+                SceneSurface(
+                    pos: (0.0, 0.0),
+                    size: (660.0, 484.0),
+                    z: 0.0,
+                    normal_rgba: (0.07, 0.08, 0.11, 1.0),
+                    blood_sight_rgba: (0.04, 0.04, 0.08, 1.0),
+                    neon_flicker: None,
+                ),
+                // Flickering neon harbor tavern reflection on wet planks
+                SceneSurface(
+                    pos: (-110.0, 115.0),
+                    size: (190.0, 90.0),
+                    z: 0.3,
+                    normal_rgba: (0.86, 0.22, 0.36, 0.12),
+                    blood_sight_rgba: (0.88, 0.08, 0.22, 0.18),
+                    neon_flicker: Some(0.12),
+                ),
+                // Sodium fog-lamp cone near Pier 9 bollard
+                SceneSurface(
+                    pos: (145.0, -35.0),
+                    size: (210.0, 160.0),
+                    z: 0.3,
+                    normal_rgba: (0.92, 0.72, 0.34, 0.10),
+                    blood_sight_rgba: (0.52, 0.08, 0.16, 0.10),
+                    neon_flicker: None,
+                ),
+                // Scrubbed crimson stain beside the cargo bollard
+                SceneSurface(
+                    pos: (172.0, -78.0),
+                    size: (38.0, 26.0),
+                    z: 1.1,
+                    normal_rgba: (0.90, 0.84, 0.84, 0.80),
+                    blood_sight_rgba: (1.0, 0.42, 0.54, 0.96),
+                    neon_flicker: None,
+                    sprite_path: Some("props/blood_drops.png"),
+                ),
+            ],
+            walls: [
+                // North warehouse wall
+                SceneWall(pos: (0.0, 240.0), size: (660.0, 20.0), color_rgb: (0.16, 0.18, 0.22), solid: true),
+                // South pier seawall parapet
+                SceneWall(pos: (0.0, -240.0), size: (660.0, 20.0), color_rgb: (0.14, 0.16, 0.20), solid: true),
+                // East deep-water bulkhead
+                SceneWall(pos: (322.0, 0.0), size: (20.0, 500.0), color_rgb: (0.12, 0.15, 0.20), solid: true),
+                // West wall (split around Precinct door at y = 95 and Morgue tunnel at y = -15)
+                SceneWall(pos: (-322.0, 195.0), size: (20.0, 96.0), color_rgb: (0.16, 0.18, 0.22), solid: true),
+                SceneWall(pos: (-322.0, 40.0), size: (20.0, 34.0), color_rgb: (0.16, 0.18, 0.22), solid: true),
+                SceneWall(pos: (-322.0, -145.0), size: (20.0, 184.0), color_rgb: (0.16, 0.18, 0.22), solid: true),
+            ],
+            props: [
+                // Neon waterfront sign mounted on north warehouse brick
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/neon_lounge_sign.png"),
+                    pos: (-115.0, 208.0),
+                    size: (132.0, 52.0),
+                    z: 3.3,
+                    color_rgba: (1.0, 0.85, 0.90, 1.0),
+                    solid: false,
+                ),
+                // Harbor Patrol Cruiser parked on the wet pier apron
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/police_cruiser.png"),
+                    pos: (-35.0, -142.0),
+                    size: (148.0, 74.0),
+                    collider_half: Some((62.0, 26.0)),
+                    z: 2.5,
+                    color_rgba: (0.20, 0.24, 0.30, 1.0),
+                    solid: true,
+                ),
+                // Rusted street hydrant & metal trash cans near tunnel entrance
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/fire_hydrant.png"),
+                    pos: (-175.0, -158.0),
+                    size: (36.0, 48.0),
+                    collider_half: Some((12.0, 14.0)),
+                    z: 2.4,
+                    color_rgba: (0.78, 0.22, 0.20, 1.0),
+                    solid: true,
+                ),
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/metal_trash_cans.png"),
+                    pos: (-246.0, -162.0),
+                    size: (58.0, 56.0),
+                    collider_half: Some((22.0, 20.0)),
+                    z: 2.4,
+                    color_rgba: (0.48, 0.52, 0.54, 1.0),
+                    solid: true,
+                ),
+                // Smuggled wooden cargo crates stacked on the NE wharf
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/wooden_crates.png"),
+                    pos: (238.0, 146.0),
+                    size: (86.0, 78.0),
+                    collider_half: Some((34.0, 28.0)),
+                    z: 2.5,
+                    color_rgba: (0.48, 0.36, 0.22, 1.0),
+                    solid: true,
+                ),
+                // Cast-iron streetlamp cutting through sea fog
+                SceneProp(
+                    label: None,
+                    sprite_path: Some("props/streetlamp.png"),
+                    pos: (148.0, 18.0),
+                    size: (44.0, 108.0),
+                    collider_half: Some((10.0, 12.0)),
+                    z: 2.8,
+                    color_rgba: (0.86, 0.78, 0.54, 1.0),
+                    solid: true,
+                ),
+            ],
+            characters: [
+                // Harbor Patrol Lt. Frank Miller
+                SceneCharacter(
+                    id: "miller",
+                    display_name: "Harbor Lt. Miller",
+                    nameplate: Some("Lt. Miller"),
+                    sprite_path: "sprites/miller.png",
+                    fallback_rgb: (0.34, 0.48, 0.68),
+                    pos: (42.0, -92.0),
+                    sprite_size: (68.0, 68.0),
+                    collider_half: Some((14.0, 14.0)),
+                    resting_bpm: Some(68.0),
+                    dialogue_node: "talk_harbor_miller",
+                    interact_radius: 74.0,
+                    nameplate_rgb: (0.72, 0.84, 0.96),
+                ),
+            ],
+            clues: [
+                // Dockside coin telephone booth (last dialed private morgue extension)
+                SceneClue(
+                    id: "pier_phone_booth",
+                    label: "Fogged Coin Phone Booth",
+                    node_id: "inspect_phone_booth",
+                    sprite_path: Some("props/phone_booth.png"),
+                    pos: (48.0, 152.0),
+                    size: (58.0, 96.0),
+                    z: 2.6,
+                    color_rgba: (0.84, 0.32, 0.28, 1.0),
+                    collider_half: Some((20.0, 28.0)),
+                    interact_radius: 78.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+                // Cast-iron bollard & oil barrels hiding surgical drainage kit & antique vitae phials
+                SceneClue(
+                    id: "pier_bollard_barrels",
+                    label: "Pier 9 Bollard & Sealed Drums",
+                    node_id: "inspect_pier_barrels",
+                    sprite_path: Some("props/harbor_bollard_barrels.png"),
+                    pos: (224.0, -86.0),
+                    size: (88.0, 74.0),
+                    z: 2.5,
+                    color_rgba: (0.52, 0.46, 0.42, 1.0),
+                    collider_half: Some((32.0, 24.0)),
+                    interact_radius: 80.0,
+                    requires_blood_sight_unless_clue: None,
+                    blood_echo_alpha: None,
+                ),
+            ],
+            blood_echoes: [
+                // Supernatural drag/carry trail from Pier 9 barrels straight into the Morgue ambulance tunnel
+                SceneBloodEcho(
+                    pos: (184.0, -76.0),
+                    size: (54.0, 36.0),
+                    alpha: 0.62,
+                    phase_offset: 0.0,
+                    sprite_path: Some("props/echo_pool.png"),
+                ),
+                SceneBloodEcho(
+                    pos: (88.0, -52.0),
+                    size: (56.0, 22.0),
+                    alpha: 0.54,
+                    phase_offset: 0.7,
+                    sprite_path: Some("props/echo_smear.png"),
+                    rotation_deg: 166.0,
+                ),
+                SceneBloodEcho(
+                    pos: (-62.0, -32.0),
+                    size: (44.0, 22.0),
+                    alpha: 0.50,
+                    phase_offset: 1.4,
+                    sprite_path: Some("props/echo_drops.png"),
+                    rotation_deg: 170.0,
+                ),
+                SceneBloodEcho(
+                    pos: (-188.0, -18.0),
+                    size: (38.0, 22.0),
+                    alpha: 0.52,
+                    phase_offset: 2.1,
+                    sprite_path: Some("props/echo_bootprint.png"),
+                    rotation_deg: 175.0,
+                ),
+            ],
+            doorways: [
+                SceneDoorwaySpec(
+                    id: "door_pier_to_precinct",
+                    label: "Enter 13th Precinct Desk",
+                    pos: (-302.0, 95.0),
+                    size: (18.0, 68.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "precinct_office",
+                    target_spawn: (230.0, 20.0),
+                    glow_rgb: (0.92, 0.76, 0.42),
+                ),
+                SceneDoorwaySpec(
+                    id: "door_pier_to_morgue",
+                    label: "Enter Sub-Basement Morgue Tunnel",
+                    pos: (-302.0, -15.0),
+                    size: (18.0, 68.0),
+                    trigger_radius: 50.0,
+                    target_scene_id: "morgue_autopsy",
+                    target_spawn: (232.0, -10.0),
+                    glow_rgb: (0.52, 0.86, 0.82),
+                ),
+            ],
+        ),
+    ],
+)

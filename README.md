@@ -9,7 +9,7 @@ A *Disco Elysium*-inspired narrative detective RPG built in pure Rust with **Bev
 | **`1` / `F1`** | **Detective Richey** | **Vampire** | **Vampire Senses**: Sees scrubbed crimson blood trails & live suspect heartbeat (`BPM`) lie rings; reads arterial blood-iron chemistry & uses Crimson Dread (`THIRST` overdrive: `+SAN`, `+PUL`, `-DED`). |
 | **`2` / `F2`** | **Det. Lucker & Ron** | **Ghost (`Det. Lucker`) + Possessed Human (`Ron`)** | **Phantom Sight**: Ghost Detective Lucker rides shotgun inside nervous human host Ron—reveals cyan death echoes & guilt tremors, channels **Corpse Séances** through Ron's voice, and booms with **Ghost Possession** (`SYNC` overdrive: `+DED`, `+NOC`, `-PUL`). |
 | **`3` / `F3`** | **Detective Pinckney** | **Werewolf** | **Lupine Scent**: Tracks golden-amber scent plumes (cordite, perfume, boot-spoor) through harbor rain, smells fear-sweat adrenaline spikes, moves with **Fleet Stride**, and unleashes **Werewolf Snarl** (`FURY` overdrive: `+2 PUL`, `+SAN`, `-DED`, `-NOC`). |
-| **`4` / `F4`** | **Detective Graves** | **Zombie Revenant** | **Mortis Sight**: Stitched morgue revenant with **Zombie Psychometry** (touches wounds to replay tissue/lividity memory), painless bullet-proof nerve in standoffs, and cold morgue clarity (`DECAY` overdrive: `+DED`, `+SAN`, `-NOC`). |
+| **`4` / `F4`** | **Detective Guinan** | **Zombie Revenant** | **Mortis Sight**: Stitched morgue revenant with **Zombie Psychometry** (touches wounds to replay tissue/lividity memory), painless bullet-proof nerve in standoffs, and cold morgue clarity (`DECAY` overdrive: `+DED`, `+SAN`, `-NOC`). |
 
 ## Quick Start
 

@@ -20,6 +20,8 @@ use crate::{
     narrative::{ClueLedger, NarrativeState},
     senses::{BloodSight, SetSuspectPulseEvent},
     stats::{DetectiveId, DetectiveSheet},
+    stories::{ActiveStory, SelectStoryEvent, StorySystems},
+    ui::StorySelectModalOpen,
     world::{ActiveScene, CharacterVisualSprite, DetectivePlayer},
 };
 
@@ -40,7 +42,12 @@ pub enum NetRole {
 pub enum NetPacket {
     Welcome {
         assigned_id: u32,
+        #[serde(default)]
+        story_id: String,
         discovered_clues: Vec<String>,
+    },
+    StoryChanged {
+        story_id: String,
     },
     PeerTransform {
         peer_id: u32,
@@ -249,7 +256,8 @@ pub struct NetSession {
     #[cfg(not(target_arch = "wasm32"))]
     transport: Mutex<TransportInner>,
     sync_timer: Timer,
-    known_clues_sent: usize,
+    pub(crate) known_clues_sent: usize,
+    pub(crate) last_broadcast_story_id: String,
 }
 
 impl Default for NetSession {
@@ -258,12 +266,13 @@ impl Default for NetSession {
             role: NetRole::Offline,
             my_peer_id: 1,
             invite_code: String::new(),
-            status_message: "Offline — Host a case or enter a friend's Invite Code.".to_string(),
+            status_message: "Offline — Host any story or enter a friend's Invite Code.".to_string(),
             peers: HashMap::new(),
             #[cfg(not(target_arch = "wasm32"))]
             transport: Mutex::new(TransportInner::None),
             sync_timer: Timer::from_seconds(0.05, TimerMode::Repeating),
             known_clues_sent: 0,
+            last_broadcast_story_id: String::new(),
         }
     }
 }
@@ -366,13 +375,11 @@ impl Plugin for NetPlugin {
             .add_event::<DisconnectNetEvent>()
             .add_systems(
                 Update,
-                (
-                    handle_net_control_events,
-                    poll_network_transport,
-                    broadcast_local_state,
-                )
-                    .chain(),
-            );
+                (handle_net_control_events, poll_network_transport)
+                    .chain()
+                    .before(StorySystems),
+            )
+            .add_systems(Update, broadcast_local_state.after(StorySystems));
     }
 }
 
@@ -380,6 +387,7 @@ fn handle_net_control_events(
     mut host_ev: EventReader<HostGameEvent>,
     mut join_ev: EventReader<JoinGameEvent>,
     mut disc_ev: EventReader<DisconnectNetEvent>,
+    active_story: Res<ActiveStory>,
     ledger: Res<ClueLedger>,
     mut session: ResMut<NetSession>,
 ) {
@@ -424,8 +432,10 @@ fn handle_net_control_events(
                     session.peers.clear();
                     session.invite_code = code.clone();
                     session.known_clues_sent = ledger.discovered.len();
+                    session.last_broadcast_story_id = active_story.story_id.clone();
                     session.status_message = format!(
-                        "Hosting on port {bound_port}! Share Invite Code: {code} (or 'LOCAL')"
+                        "Hosting \"{}\" on port {bound_port}! Code: {code} (or 'LOCAL')",
+                        active_story.story_name
                     );
                 }
                 Err(e) => {
@@ -444,8 +454,11 @@ fn handle_net_control_events(
                     session.peers.clear();
                     session.invite_code = code.clone();
                     session.known_clues_sent = ledger.discovered.len();
-                    session.status_message =
-                        format!("Opening Room {code} via WebSocket relay...");
+                    session.last_broadcast_story_id = active_story.story_id.clone();
+                    session.status_message = format!(
+                        "Hosting \"{}\" — Opening Room {code}...",
+                        active_story.story_name
+                    );
                 }
                 Err(e) => {
                     session.status_message = e;
@@ -505,17 +518,22 @@ fn handle_net_control_events(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn poll_network_transport(
     mut session: ResMut<NetSession>,
+    active_story: Res<ActiveStory>,
+    mut story_modal: Option<ResMut<StorySelectModalOpen>>,
     mut ledger: ResMut<ClueLedger>,
     mut nar_state: ResMut<NarrativeState>,
     mut pulse_writer: EventWriter<SetSuspectPulseEvent>,
+    mut story_writer: EventWriter<SelectStoryEvent>,
 ) {
     if session.role == NetRole::Offline {
         return;
     }
 
     let existing_clues = ledger.discovered.clone();
+    let hosted_story_id = active_story.story_id.clone();
     let mut incoming_events: Vec<NetPacket> = Vec::new();
     #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
     let mut disconnected_peers: Vec<u32> = Vec::new();
@@ -539,6 +557,7 @@ fn poll_network_transport(
                         let mut conn = FramedConn::new(pid, stream);
                         let _ = conn.send_packet(&NetPacket::Welcome {
                             assigned_id: pid,
+                            story_id: hosted_story_id.clone(),
                             discovered_clues: existing_clues.clone(),
                         });
                         clients.push(conn);
@@ -638,6 +657,7 @@ fn poll_network_transport(
                         if session.role == NetRole::Hosting {
                             if let Ok(ser) = ron::to_string(&NetPacket::Welcome {
                                 assigned_id: pid,
+                                story_id: hosted_story_id.clone(),
                                 discovered_clues: existing_clues.clone(),
                             }) {
                                 welcome_to_send.push(format!("PKT|{ser}"));
@@ -686,24 +706,43 @@ fn poll_network_transport(
         match pkt {
             NetPacket::Welcome {
                 assigned_id,
+                story_id,
                 discovered_clues,
             } => {
                 if session.my_peer_id == 0 || session.my_peer_id == assigned_id {
                     session.my_peer_id = assigned_id;
-                    let mut added_any = false;
-                    for cid in discovered_clues {
-                        if ledger.add_clue(&cid) {
-                            added_any = true;
+                    if let Some(ref mut sm) = story_modal {
+                        sm.0 = false;
+                    }
+                    if !story_id.is_empty() && story_id != active_story.story_id {
+                        story_writer.send(SelectStoryEvent::sync_from_host(
+                            story_id.clone(),
+                            discovered_clues,
+                        ));
+                    } else {
+                        let mut added_any = false;
+                        for cid in discovered_clues {
+                            if ledger.add_clue(&cid) {
+                                added_any = true;
+                            }
+                        }
+                        session.known_clues_sent = ledger.discovered.len();
+                        if added_any {
+                            nar_state.generation += 1;
                         }
                     }
-                    session.known_clues_sent = ledger.discovered.len();
-                    if added_any {
-                        nar_state.generation += 1;
-                    }
                     session.status_message = format!(
-                        "Joined as Detective #{assigned_id} (Code: {})",
+                        "Joined Story as Detective #{assigned_id} (Code: {})",
                         session.invite_code
                     );
+                }
+            }
+            NetPacket::StoryChanged { story_id } => {
+                if session.role == NetRole::Client
+                    && !story_id.is_empty()
+                    && story_id != active_story.story_id
+                {
+                    story_writer.send(SelectStoryEvent::sync_from_host(story_id, Vec::new()));
                 }
             }
             NetPacket::PeerTransform {
@@ -759,6 +798,7 @@ fn poll_network_transport(
 fn broadcast_local_state(
     time: Res<Time>,
     mut session: ResMut<NetSession>,
+    active_story: Res<ActiveStory>,
     sheet: Res<DetectiveSheet>,
     active_scene: Res<ActiveScene>,
     ledger: Res<ClueLedger>,
@@ -772,6 +812,13 @@ fn broadcast_local_state(
     }
 
     let mut outgoing: Vec<NetPacket> = Vec::new();
+
+    if session.role == NetRole::Hosting && session.last_broadcast_story_id != active_story.story_id {
+        session.last_broadcast_story_id = active_story.story_id.clone();
+        outgoing.push(NetPacket::StoryChanged {
+            story_id: active_story.story_id.clone(),
+        });
+    }
 
     if ledger.discovered.len() > session.known_clues_sent {
         for cid in &ledger.discovered[session.known_clues_sent..] {
@@ -868,6 +915,7 @@ mod tests {
     fn tcp_host_and_client_exchange_welcome_and_clues() {
         let sample = NetPacket::Welcome {
             assigned_id: 2,
+            story_id: "case_02".to_string(),
             discovered_clues: vec!["clue_staged_rug".to_string()],
         };
         let encoded = format!("{}\n", ron::to_string(&sample).unwrap());
@@ -875,9 +923,11 @@ mod tests {
         match parsed {
             NetPacket::Welcome {
                 assigned_id,
+                story_id,
                 discovered_clues,
             } => {
                 assert_eq!(assigned_id, 2);
+                assert_eq!(story_id, "case_02");
                 assert_eq!(discovered_clues, vec!["clue_staged_rug".to_string()]);
             }
             other => panic!("Unexpected packet: {other:?}"),

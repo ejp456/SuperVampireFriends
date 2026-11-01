@@ -218,7 +218,8 @@ impl Plugin for NarrativePlugin {
                     process_enter_node_events,
                     refresh_choices_on_sense_or_character_change,
                 )
-                    .chain(),
+                    .chain()
+                    .after(crate::stories::StorySystems),
             );
     }
 }
@@ -245,10 +246,14 @@ fn handle_choice_hotkeys(
     keys: Res<ButtonInput<KeyCode>>,
     mp_modal: Option<Res<crate::ui::MultiplayerModalOpen>>,
     char_modal: Option<Res<crate::ui::CharacterSelectModalOpen>>,
+    story_modal: Option<Res<crate::ui::StorySelectModalOpen>>,
     state: Res<NarrativeState>,
     mut writer: EventWriter<SelectChoiceEvent>,
 ) {
-    if mp_modal.map(|m| m.open).unwrap_or(false) || char_modal.map(|c| c.0).unwrap_or(false) {
+    if mp_modal.map(|m| m.open).unwrap_or(false)
+        || char_modal.map(|c| c.0).unwrap_or(false)
+        || story_modal.map(|s| s.0).unwrap_or(false)
+    {
         return;
     }
     let key_map = [

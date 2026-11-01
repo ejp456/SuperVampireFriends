@@ -1,0 +1,698 @@
+CaseData(
+    title: "THE MORGUE COVENANT",
+    subtitle: "3:45 AM",
+    opening_node: "morgue_arrival",
+    clues: [
+        ClueDef(
+            id: "clue_exsanguinated_corpse",
+            title: "Dry Jugular Cannulation",
+            summary: "Dockmaster Harlow wasn't drowned—his blood was surgically siphoned while his heart still beat.",
+        ),
+        ClueDef(
+            id: "clue_pre_drowning_timestamp",
+            title: "Impossible Intake Timestamp",
+            summary: "Morgue register logs Harlow's body at 1:50 AM—forty minutes before Harbor Patrol reported him missing.",
+        ),
+        ClueDef(
+            id: "clue_covenant_seal",
+            title: "Covenant Phials & Wax Seal",
+            summary: "Hidden behind cold storage: warm crimson phials stamped with Dr. Vale's silver caduceus ring.",
+        ),
+        ClueDef(
+            id: "clue_private_ambulance_log",
+            title: "Unmarked Black Van Pass",
+            summary: "Precinct dispatch shows Coroner Vale signed Gate Pass #09 for a private hearse from Pier 9 at 1:35 AM.",
+        ),
+        ClueDef(
+            id: "clue_clerk_testimony",
+            title: "Clara's Midnight Sighting",
+            summary: "Night Clerk Clara saw Dr. Vale carry a velvet medical satchel up from the Pier 9 tunnel.",
+        ),
+        ClueDef(
+            id: "clue_phone_booth_extension",
+            title: "Coin Booth Redial: EXT-04",
+            summary: "Harlow's last call from Pier 9 went to Morgue Extension 04—warning Vale he found her smuggled crates.",
+        ),
+        ClueDef(
+            id: "clue_pier_transfusion_rig",
+            title: "Glass Siphon Rig in Oil Drum",
+            summary: "A surgical glass siphon smelling of ether and Dr. Vale's carbolic soap was dumped inside a Pier 9 barrel.",
+        ),
+        ClueDef(
+            id: "clue_miller_harbor_alibi",
+            title: "Coast Guard Signal Tape",
+            summary: "Lt. Miller was logged two miles out on Cutter #7 until 2:25 AM; he found Pier 9 already scrubbed.",
+        ),
+    ],
+    nodes: [
+        // ---------------- OPENING ARRIVAL ----------------
+        DialogueNode(
+            id: "morgue_arrival",
+            speaker: "DR. EVELYN VALE",
+            active_suspect_id: Some("vale"),
+            text: "\"You're dripping rainwater on my tile, {detective}. Dockmaster Harlow slipped off Pier 9 in the fog—saltwater drowning, open and shut.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 74.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Richey),
+                    requires_blood_sight: false,
+                    text: "A drowned man doesn't leave warm arterial iron in the air. Press [Tab] to awaken {sense}.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(LuckerAndRon),
+                    requires_blood_sight: false,
+                    text: "Det. Lucker (Ghost): \"Drowned? His soul's screaming at that corner alcove, Ron! Hit [Tab] for Phantom Sight.\"",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Pinckney),
+                    requires_blood_sight: false,
+                    text: "Ether, carbolic soap, and fresh blood—not harbor brine. Press [Tab] for Lupine Scent.",
+                ),
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Zombie),
+                    requires_blood_sight: false,
+                    text: "No lividity pooling in his back. Somebody drained him dry before he cooled. Press [Tab] for Mortis Sight.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Humor me, Doctor. Let me examine the slab before you seal the drawer.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- MORGUE HOTSPOT: CORPSE ----------------
+        DialogueNode(
+            id: "inspect_harlow_corpse",
+            speaker: "ARTHUR HARLOW (CORPSE)",
+            active_suspect_id: None,
+            text: "Pale as marble on stainless steel. His coat is damp with harbor mist, yet twin surgical punctures hide beneath his collar and his veins are completely empty.",
+            grants_clues: ["clue_exsanguinated_corpse"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Sanguine),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: true,
+                    text: "Faint glowing droplets trail SE from the slab drain toward the dark cold-storage alcove.",
+                ),
+                PassiveVoice(
+                    faculty: Some(Deduction),
+                    min_stat: 3,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Clean 14-gauge bevel cuts—medical training, not street violence.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Sanguine / Sense] Trace the residual life-essence clinging to his collar.",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_harlow_collar",
+                        faculty: Sanguine,
+                        dc: 10,
+                        hunger_cost: 0.5,
+                        success_node: "harlow_collar_success",
+                        failure_node: "harlow_collar_fail",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Zombie Exclusive] Touch Harlow's temple for his final dying nerve-flash.",
+                    next_node: "harlow_zombie_flash",
+                    requires_character: Some(Zombie),
+                ),
+                DialogueChoice(
+                    label: "[Lucker & Ron Exclusive] Let Ghost Lucker whisper to Harlow's lingering shade.",
+                    next_node: "harlow_ghost_whisper",
+                    requires_character: Some(LuckerAndRon),
+                ),
+                DialogueChoice(
+                    label: "Step back from the autopsy slab.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "harlow_collar_success",
+            speaker: "FORENSIC INSTINCT",
+            active_suspect_id: None,
+            text: "Beneath the ether and sea spray lingers carbolic surgeon's soap—and the unmistakable tang of anticoagulants mixed in glass phials.",
+            grants_clues: ["clue_exsanguinated_corpse"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Return to the morgue floor.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "harlow_collar_fail",
+            speaker: "FORENSIC INSTINCT",
+            active_suspect_id: None,
+            text: "Formaldehyde burns your senses before you can isolate the fainter scent beneath it.",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Shake off the sting and look elsewhere.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "harlow_zombie_flash",
+            speaker: "DET. GUINAN — MORTIS PSYCHOMETRY",
+            active_suspect_id: None,
+            text: "Cold vision: fog lamps on Pier 9, an ether-soaked gauze pressed over his mouth by gloved hands wearing a silver caduceus ring, and glass tubing filling dark phials.",
+            grants_clues: ["clue_covenant_seal"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 118.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.4,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Release his cold hand and eye Dr. Vale.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "harlow_ghost_whisper",
+            speaker: "ECHO IN RON'S EAR",
+            active_suspect_id: None,
+            text: "Det. Lucker: \"He says he phoned the coroner from the Pier 9 booth about smuggled blood-crates—and she met him on the wharf with a syringe!\"",
+            grants_clues: ["clue_phone_booth_extension"],
+            pulse_trigger: None,
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Good catch, partner. Let's back it up with hard evidence.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- MORGUE HOTSPOT: INTAKE REGISTER ----------------
+        DialogueNode(
+            id: "inspect_morgue_register",
+            speaker: "MORGUE INTAKE REGISTER",
+            active_suspect_id: None,
+            text: "Line 14 is blotted in fresh fountain ink: 'HARLOW, A. — Received 1:50 AM via Tunnel Gate.' Yet Harbor Patrol didn't report Harlow missing until 2:30 AM.",
+            grants_clues: ["clue_pre_drowning_timestamp"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Pocket a carbon copy and close the ledger.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- MORGUE HOTSPOT: HIDDEN RITUAL ALCOVE ----------------
+        DialogueNode(
+            id: "inspect_ritual_alcove",
+            speaker: "COLD STORAGE ALCOVE",
+            active_suspect_id: None,
+            text: "Behind a latched steel curtain stands a silver candelabra warming six stoppered phials of fresh human blood—each sealed in crimson wax with a caduceus crest.",
+            grants_clues: ["clue_covenant_seal"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 132.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.2,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Richey),
+                    requires_blood_sight: false,
+                    text: "Black-market mortal vitae refined for old-world vampires—worth a fortune uptown.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "Leave the phials undisturbed for now—watch Dr. Vale's pulse.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- PRECINCT HOTSPOT: DISPATCH DESK ----------------
+        DialogueNode(
+            id: "inspect_dispatch_desk",
+            speaker: "PRECINCT DISPATCH LOG",
+            active_suspect_id: None,
+            text: "Two carbon slips pinned under the green banker's lamp: Gate Pass #09 signed 'E. Vale, M.D.' for an unmarked van at 1:35 AM, and Coast Guard Cutter #7's radio log placing Lt. Miller offshore until 2:25 AM.",
+            grants_clues: ["clue_private_ambulance_log", "clue_miller_harbor_alibi"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Set down the dispatch clipboard.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- PRECINCT NPC: CLERK CLARA ----------------
+        DialogueNode(
+            id: "talk_clerk_clara",
+            speaker: "NIGHT CLERK CLARA MOREAU",
+            active_suspect_id: Some("clara"),
+            text: "\"Quiet night until 1:40 AM, {detective}. Then the sub-basement freight lift hummed, and Dr. Vale told me not to log the tunnel bell.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "clara",
+                target_bpm: 88.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Her heartbeat is anxious, not deceptive—she's afraid of losing her night-desk job.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Pulse] \"You're off the hook, Clara. Tell me exactly what Dr. Vale carried up from that tunnel.\"",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_reassure_clerk",
+                        faculty: Pulse,
+                        dc: 10,
+                        hunger_cost: 0.0,
+                        success_node: "clerk_clara_confides",
+                        failure_node: "clerk_clara_hesitates",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "\"Stay behind the desk and lock the records room, Clara.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "clerk_clara_confides",
+            speaker: "NIGHT CLERK CLARA MOREAU",
+            active_suspect_id: Some("clara"),
+            text: "\"She wore rain-soaked surgical gloves and clutched a velvet satchel that clinked like glass bottles. And—I saw her silver caduceus ring stained dark red.\"",
+            grants_clues: ["clue_clerk_testimony"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "clara",
+                target_bpm: 76.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Thank you, Clara. That seals the timeline.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "clerk_clara_hesitates",
+            speaker: "NIGHT CLERK CLARA MOREAU",
+            active_suspect_id: Some("clara"),
+            text: "\"Dr. Vale signs my shift evaluations, {detective}. Check the dispatch desk yourself if you need signatures!\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "clara",
+                target_bpm: 98.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Fair enough. I'll read the logs.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- PIER 9 HOTSPOTS ----------------
+        DialogueNode(
+            id: "inspect_phone_booth",
+            speaker: "PIER 9 COIN TELEPHONE",
+            active_suspect_id: None,
+            text: "Condensation still fogs the glass. Scratched into the brass coin box beside a damp dime is 'MORGUE EXT-04 — ASK VALE ABOUT CRATE 9'.",
+            grants_clues: ["clue_phone_booth_extension"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step out of the rain-streaked booth.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "inspect_pier_barrels",
+            speaker: "PIER 9 BOLLARD & OIL DRUMS",
+            active_suspect_id: None,
+            text: "Wedged inside a false-bottomed oil drum lies a coiled surgical siphon rig, an empty bottle of medical ether, and gauze reeking of carbolic soap.",
+            grants_clues: ["clue_pier_transfusion_rig"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_character: Some(Pinckney),
+                    requires_blood_sight: false,
+                    text: "Lupine instinct snarls: Dr. Vale's sterile soap scent is all over this brass valve!",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "[Pinckney Exclusive] Lock onto the killer's scent trail from the drum to the morgue tunnel.",
+                    next_node: "pier_pinckney_track",
+                    requires_character: Some(Pinckney),
+                ),
+                DialogueChoice(
+                    label: "Bag the surgical siphon rig as evidence.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "pier_pinckney_track",
+            speaker: "DET. PINCKNEY — LUPINE SPOOR",
+            active_suspect_id: None,
+            text: "Every step is clear in the rain: Harlow collapsed beside the bollard, two sets of rubber ambulance wheels rolled straight into the sub-basement tunnel, and Dr. Vale's perfume led the way.",
+            grants_clues: ["clue_private_ambulance_log"],
+            pulse_trigger: None,
+            hunger_delta: 0.3,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Head back inside to confront the coroner.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- PIER 9 NPC: LT. MILLER ----------------
+        DialogueNode(
+            id: "talk_harbor_miller",
+            speaker: "HARBOR LT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "\"Fog's thick as soup tonight, {detective}. My cutter docked at 2:25 AM after Harlow missed roll call—found his cap by the bollard, no body.\"",
+            grants_clues: ["clue_miller_harbor_alibi"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "miller",
+                target_bpm: 70.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Pulse),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: true,
+                    text: "Steady 70 BPM. For once in this city, Miller's telling the whole truth.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"What was Harlow guarding in those northeast crates, Lieutenant?\"",
+                    next_node: "miller_explains_crates",
+                ),
+                DialogueChoice(
+                    label: "\"Keep Pier 9 sealed until I'm finished downstairs.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "miller_explains_crates",
+            speaker: "HARBOR LT. FRANK MILLER",
+            active_suspect_id: Some("miller"),
+            text: "\"Medical glassware consigned to the City Morgue. Harlow thought the weight was wrong—said someone was smuggling contraband vials out, not in.\"",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"That explains why he called the morgue first. Stay sharp, Frank.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        // ---------------- CONFRONTING DR. EVELYN VALE ----------------
+        DialogueNode(
+            id: "talk_vale_hub",
+            speaker: "DR. EVELYN VALE",
+            active_suspect_id: Some("vale"),
+            text: "\"Still lingering over a drowning victim, {detective}? Sign the accidental-death slip so I can lock up.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 78.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Explain why Harlow's jugular was cannulated dry before he ever touched harbor water.\"",
+                    next_node: "vale_pressed_wounds",
+                    requires_clue: Some("clue_exsanguinated_corpse"),
+                ),
+                DialogueChoice(
+                    label: "\"Your own register logs Harlow here at 1:50 AM—forty minutes before he 'drowned'.\"",
+                    next_node: "vale_pressed_timeline",
+                    requires_clue: Some("clue_pre_drowning_timestamp"),
+                ),
+                DialogueChoice(
+                    label: "[CONFRONT] \"The Covenant phials, the Pier 9 siphon, Gate Pass #09—you harvested Harlow, Doctor.\"",
+                    next_node: "vale_final_confrontation",
+                    requires_clue: Some("clue_covenant_seal"),
+                ),
+                DialogueChoice(
+                    label: "[CONFRONT] \"Harlow called EXT-04 about your crates, and your surgical rig is still in the Pier 9 barrel.\"",
+                    next_node: "vale_final_confrontation",
+                    requires_clue: Some("clue_pier_transfusion_rig"),
+                ),
+                DialogueChoice(
+                    label: "\"Sign off on accidental drowning—case closed.\" [Close Case Early]",
+                    next_node: "ending_coverup_signed",
+                ),
+                DialogueChoice(
+                    label: "\"Not yet, Doctor. I'm still checking the building.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "vale_pressed_wounds",
+            speaker: "DR. EVELYN VALE",
+            active_suspect_id: Some("vale"),
+            text: "\"Standard post-mortem embalming prep, {detective}. You're mistaking trocar incisions for foul play.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 124.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: Some(Sanguine),
+                    min_stat: 2,
+                    requires_character: None,
+                    requires_blood_sight: false,
+                    text: "Her pulse just spiked past 120 BPM! Nobody embalms an active coroner's inquest before dawn.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"City coroners don't embalm homicide holds, Doctor. Keep talking.\"",
+                    next_node: "talk_vale_hub",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "vale_pressed_timeline",
+            speaker: "DR. EVELYN VALE",
+            active_suspect_id: Some("vale"),
+            text: "\"The wall clock in the sub-basement runs fast when the damp gets into the gears. A clerical slip, nothing more.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 128.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "\"Let's see if the upstairs dispatch desk agrees with your clock.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "vale_final_confrontation",
+            speaker: "DR. EVELYN VALE",
+            active_suspect_id: Some("vale"),
+            text: "Dr. Vale's scalpel hand stills. \"Do you have any idea who buys my Covenant phials uptown, {detective}? High-court immortals who keep monsters off the streets. Arrest me, and they starve.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 144.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.2,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "[Deduction] Lock down every piece of physical & timeline evidence for an airtight arrest.",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_vale_indictment",
+                        faculty: Deduction,
+                        dc: 10,
+                        hunger_cost: 0.0,
+                        success_node: "ending_vale_arrested",
+                        failure_node: "ending_vale_lawyer_escape",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "[Nocturne] Intimidate Vale into naming every uptown Covenant buyer before cuffing her.",
+                    next_node: "",
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_vale_buyers",
+                        faculty: Nocturne,
+                        dc: 11,
+                        hunger_cost: 0.5,
+                        success_node: "ending_covenant_exposed",
+                        failure_node: "ending_vale_arrested",
+                    )),
+                ),
+            ],
+        ),
+
+        // ---------------- ENDINGS ----------------
+        DialogueNode(
+            id: "ending_vale_arrested",
+            speaker: "CASE CLOSED — THE CORONER IN IRONS",
+            active_suspect_id: None,
+            text: "Lt. Miller cuffs Dr. Evelyn Vale beside her own steel slab while Clara seals the intake ledgers. Dockmaster Harlow gets justice before sunrise. [Press V to play another Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Walk the crime scenes again or press [V] to select another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_covenant_exposed",
+            speaker: "CASE CLOSED — THE COVENANT LEDGER SEIZED",
+            active_suspect_id: None,
+            text: "Shaken by your supernatural presence, Dr. Vale surrenders her cipher book of uptown vampire buyers along with the Pier 9 phials. Every name on the Morgue Covenant falls tonight. [Press V to play another Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back into the rain or press [V] to select another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_vale_lawyer_escape",
+            speaker: "CASE OUTCOME — COMPROMISED CHAIN OF CUSTODY",
+            active_suspect_id: None,
+            text: "Vale smashes two phials on the floor drain before Miller arrives; you arrest her on tampering charges, though her uptown buyers slip into the fog. [Press V to select a Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Review the scene or press [V] to replay / pick another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_coverup_signed",
+            speaker: "CASE OUTCOME — SALT WATER & SILENCE",
+            active_suspect_id: None,
+            text: "You sign the accidental-drowning slip. As you climb the morgue stairs, the silver candelabra flickers behind the cold-storage curtain, and another unmarked van idles on Pier 9. [Press V to select a Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Continue exploring or press [V] to pick another Story.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+    ],
+)

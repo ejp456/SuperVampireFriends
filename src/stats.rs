@@ -111,7 +111,7 @@ impl DetectiveId {
             DetectiveId::Richey => "Detective Richey",
             DetectiveId::LuckerAndRon => "Det. Lucker & Ron",
             DetectiveId::Pinckney => "Detective Pinckney",
-            DetectiveId::Zombie => "Detective Graves",
+            DetectiveId::Zombie => "Detective Guinan",
         }
     }
 
@@ -129,7 +129,7 @@ impl DetectiveId {
             DetectiveId::Richey => "YOU — DET. RICHEY (VAMPIRE)",
             DetectiveId::LuckerAndRon => "YOU — RON & GHOST DET. LUCKER",
             DetectiveId::Pinckney => "YOU — DET. PINCKNEY (WEREWOLF)",
-            DetectiveId::Zombie => "YOU — DET. GRAVES (ZOMBIE)",
+            DetectiveId::Zombie => "YOU — DET. GUINAN (ZOMBIE)",
         }
     }
 
@@ -139,7 +139,7 @@ impl DetectiveId {
             DetectiveId::Richey => "Richey",
             DetectiveId::LuckerAndRon => "Ron",
             DetectiveId::Pinckney => "Pinckney",
-            DetectiveId::Zombie => "Graves",
+            DetectiveId::Zombie => "Guinan",
         }
     }
 

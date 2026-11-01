@@ -1,0 +1,192 @@
+CaseData(
+    title: "__STORY_UPPER__",
+    subtitle: "3:00 AM",
+    opening_node: "intro_arrival",
+    clues: [
+        ClueDef(
+            id: "clue_corpse_wound",
+            title: "Staged Wound",
+            summary: "Physical trauma on the victim contradicts the suspect's initial story.",
+        ),
+        ClueDef(
+            id: "clue_hidden_trace",
+            title: "Supernatural Residue",
+            summary: "Revealed by supernatural sight in the corner of the primary room.",
+        ),
+        ClueDef(
+            id: "clue_alley_note",
+            title: "Discarded Ledger Slip",
+            summary: "Rain-spotted note recovered beside the alley dumpster.",
+        ),
+        ClueDef(
+            id: "clue_phone_log",
+            title: "Midnight Coin-Box Call",
+            summary: "The corner phone booth places the suspect at the scene forty minutes early.",
+        ),
+    ],
+    nodes: [
+        DialogueNode(
+            id: "intro_arrival",
+            speaker: "DR. EVELYN VALE",
+            active_suspect_id: Some("vale"),
+            text: "\"Glad you made it through the rain, {detective}. Looks routine at first glance—unless your {sense} says otherwise.\"",
+            grants_clues: [],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 74.0,
+                is_lie_spike: false,
+            )),
+            hunger_delta: 0.0,
+            passive_voices: [
+                PassiveVoice(
+                    faculty: None,
+                    min_stat: 0,
+                    requires_blood_sight: false,
+                    text: "Press [Tab] to awaken {sense} and sweep the room for hidden traces.",
+                ),
+            ],
+            choices: [
+                DialogueChoice(
+                    label: "\"Give me five minutes with the room first.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "inspect_corpse",
+            speaker: "VICTIM (CORPSE)",
+            active_suspect_id: None,
+            text: "Cold on the crimson rug. Almost no blood soaked into the weave beneath the body.",
+            grants_clues: ["clue_corpse_wound"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back from the body.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "inspect_hidden_trace",
+            speaker: "HIDDEN RITUAL TRACE",
+            active_suspect_id: None,
+            text: "Warm wax and iron residue hidden in the shadows—proof the crime was staged here.",
+            grants_clues: ["clue_hidden_trace"],
+            pulse_trigger: Some(PulseTrigger(
+                npc_id: "vale",
+                target_bpm: 128.0,
+                is_lie_spike: true,
+            )),
+            hunger_delta: 0.2,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Pocket the evidence.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "inspect_alley_clue",
+            speaker: "DISCARDED PAPERS",
+            active_suspect_id: None,
+            text: "Torn ledger pages tossed beside the alley dumpster in a hurry.",
+            grants_clues: ["clue_alley_note"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Tuck the pages into your coat.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "inspect_street_phone",
+            speaker: "CORNER PHONE BOOTH",
+            active_suspect_id: None,
+            text: "A damp coin and a hastily scratched extension number inside the brass coin box.",
+            grants_clues: ["clue_phone_log"],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Step back into the rain.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "talk_suspect_hub",
+            speaker: "DR. EVELYN VALE",
+            active_suspect_id: Some("vale"),
+            text: "\"Found anything worth keeping us out of bed, {detective}?\"",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "[CONFRONT] Present the hidden ritual trace and staged wound.",
+                    next_node: "",
+                    requires_clue: Some("clue_hidden_trace"),
+                    skill_check: Some(SkillCheckSpec(
+                        id: "check_final_accusation",
+                        faculty: Deduction,
+                        dc: 10,
+                        hunger_cost: 0.0,
+                        success_node: "ending_solved",
+                        failure_node: "ending_compromised",
+                    )),
+                ),
+                DialogueChoice(
+                    label: "\"Still looking around.\"",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_solved",
+            speaker: "CASE CLOSED",
+            active_suspect_id: None,
+            text: "Faced with irrefutable forensic and supernatural proof, the culprit confesses before dawn. [Press V to play another Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Continue exploring or press [V] to switch Stories.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+
+        DialogueNode(
+            id: "ending_compromised",
+            speaker: "CASE OUTCOME — PARTIAL CONFESSION",
+            active_suspect_id: None,
+            text: "You make the arrest, though a gap in the chain of custody leaves questions lingering in the rain. [Press V to play another Story]",
+            grants_clues: [],
+            pulse_trigger: None,
+            hunger_delta: 0.0,
+            passive_voices: [],
+            choices: [
+                DialogueChoice(
+                    label: "Continue exploring or press [V] to switch Stories.",
+                    next_node: "LEAVE_CONVERSATION",
+                ),
+            ],
+        ),
+    ],
+)

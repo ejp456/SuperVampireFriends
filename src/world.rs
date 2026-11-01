@@ -9,7 +9,7 @@ use crate::{
     net::NetSession,
     senses::{BloodEcho, BloodSight, HeartbeatPulseRing, MundaneAmbiance, SuspectHeartbeat},
     stats::{DetectiveId, DetectiveSheet},
-    ui::{CharacterSelectModalOpen, LedgerModalOpen, MultiplayerModalOpen},
+    ui::{CharacterSelectModalOpen, LedgerModalOpen, MultiplayerModalOpen, StorySelectModalOpen},
 };
 
 const EMBEDDED_CASE_01_SCENES: &str = include_str!("../assets/scenes/case_01_scenes.ron");
@@ -31,6 +31,7 @@ pub enum SceneEnvironment {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SceneCatalog {
+    pub story_name: String,
     pub initial_scene: String,
     pub initial_spawn: (f32, f32),
     pub scenes: Vec<SceneClass>,
@@ -64,6 +65,8 @@ pub struct SceneSurface {
     pub normal_rgba: (f32, f32, f32, f32),
     pub blood_sight_rgba: (f32, f32, f32, f32),
     pub neon_flicker: Option<f32>,
+    #[serde(default)]
+    pub sprite_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,8 +80,14 @@ pub struct SceneWall {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SceneProp {
     pub label: Option<String>,
+    #[serde(default)]
+    pub sprite_path: Option<String>,
     pub pos: (f32, f32),
     pub size: (f32, f32),
+    #[serde(default)]
+    pub collider_half: Option<(f32, f32)>,
+    #[serde(default)]
+    pub rotation_deg: f32,
     pub z: f32,
     pub color_rgba: (f32, f32, f32, f32),
     pub solid: bool,
@@ -105,6 +114,8 @@ pub struct SceneClue {
     pub id: String,
     pub label: String,
     pub node_id: String,
+    #[serde(default)]
+    pub sprite_path: Option<String>,
     pub pos: (f32, f32),
     pub size: (f32, f32),
     pub z: f32,
@@ -121,6 +132,10 @@ pub struct SceneBloodEcho {
     pub size: (f32, f32),
     pub alpha: f32,
     pub phase_offset: f32,
+    #[serde(default)]
+    pub sprite_path: Option<String>,
+    #[serde(default)]
+    pub rotation_deg: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,10 +165,11 @@ impl SceneClass {
         }
         for p in &self.props {
             if p.solid {
-                boxes.push((
-                    Vec2::new(p.pos.0, p.pos.1),
-                    Vec2::new(p.size.0 * 0.5, p.size.1 * 0.5),
-                ));
+                let half = p
+                    .collider_half
+                    .map(|(hx, hy)| Vec2::new(hx, hy))
+                    .unwrap_or_else(|| Vec2::new(p.size.0 * 0.5, p.size.1 * 0.5));
+                boxes.push((Vec2::new(p.pos.0, p.pos.1), half));
             }
         }
         for ch in &self.characters {
@@ -195,13 +211,23 @@ impl SceneClass {
                 surf.blood_sight_rgba.2,
                 surf.blood_sight_rgba.3,
             );
-            let mut ent = commands.spawn((
-                SceneScoped,
+            let surf_sprite = if let Some(tex) = surf.sprite_path.as_deref().and_then(&load_tex) {
+                Sprite {
+                    image: tex,
+                    color: normal,
+                    custom_size: Some(Vec2::new(surf.size.0, surf.size.1)),
+                    ..default()
+                }
+            } else {
                 Sprite {
                     color: normal,
                     custom_size: Some(Vec2::new(surf.size.0, surf.size.1)),
                     ..default()
-                },
+                }
+            };
+            let mut ent = commands.spawn((
+                SceneScoped,
+                surf_sprite,
                 Transform::from_xyz(surf.pos.0, surf.pos.1, surf.z),
                 MundaneAmbiance {
                     normal_color: normal,
@@ -235,8 +261,14 @@ impl SceneClass {
         // 3. Props & Set Pieces
         for prop in &self.props {
             let sz = Vec2::new(prop.size.0, prop.size.1);
-            let mut ent = commands.spawn((
-                SceneScoped,
+            let prop_sprite = if let Some(tex) = prop.sprite_path.as_deref().and_then(&load_tex) {
+                Sprite {
+                    image: tex,
+                    color: Color::srgba(1.0, 1.0, 1.0, prop.color_rgba.3),
+                    custom_size: Some(sz),
+                    ..default()
+                }
+            } else {
                 Sprite {
                     color: Color::srgba(
                         prop.color_rgba.0,
@@ -246,13 +278,19 @@ impl SceneClass {
                     ),
                     custom_size: Some(sz),
                     ..default()
-                },
-                Transform::from_xyz(prop.pos.0, prop.pos.1, prop.z),
-            ));
+                }
+            };
+            let mut tf = Transform::from_xyz(prop.pos.0, prop.pos.1, prop.z);
+            if prop.rotation_deg.abs() > 0.01 {
+                tf.rotation = Quat::from_rotation_z(prop.rotation_deg.to_radians());
+            }
+            let mut ent = commands.spawn((SceneScoped, prop_sprite, tf));
             if prop.solid {
-                ent.insert(SolidCollider {
-                    half_extents: sz * 0.5,
-                });
+                let half_extents = prop
+                    .collider_half
+                    .map(|(hx, hy)| Vec2::new(hx, hy))
+                    .unwrap_or(sz * 0.5);
+                ent.insert(SolidCollider { half_extents });
             }
         }
 
@@ -351,8 +389,14 @@ impl SceneClass {
 
         // 5. Interactive Forensic Clue Objects
         for cl in &self.clues {
-            let mut ent = commands.spawn((
-                SceneScoped,
+            let clue_sprite = if let Some(tex) = cl.sprite_path.as_deref().and_then(&load_tex) {
+                Sprite {
+                    image: tex,
+                    color: Color::srgba(1.0, 1.0, 1.0, cl.color_rgba.3),
+                    custom_size: Some(Vec2::new(cl.size.0, cl.size.1)),
+                    ..default()
+                }
+            } else {
                 Sprite {
                     color: Color::srgba(
                         cl.color_rgba.0,
@@ -362,7 +406,11 @@ impl SceneClass {
                     ),
                     custom_size: Some(Vec2::new(cl.size.0, cl.size.1)),
                     ..default()
-                },
+                }
+            };
+            let mut ent = commands.spawn((
+                SceneScoped,
+                clue_sprite,
                 Transform::from_xyz(cl.pos.0, cl.pos.1, cl.z),
                 InteractableHotspot {
                     label: cl.label.clone(),
@@ -391,14 +439,28 @@ impl SceneClass {
 
         // 6. Supernatural Blood Sight Trails & Residue
         for echo in &self.blood_echoes {
-            commands.spawn((
-                SceneScoped,
+            let echo_sprite = if let Some(tex) = echo.sprite_path.as_deref().and_then(&load_tex) {
+                Sprite {
+                    image: tex,
+                    color: Color::srgba(0.95, 0.08, 0.20, echo.alpha),
+                    custom_size: Some(Vec2::new(echo.size.0, echo.size.1)),
+                    ..default()
+                }
+            } else {
                 Sprite {
                     color: Color::srgba(0.95, 0.08, 0.20, echo.alpha),
                     custom_size: Some(Vec2::new(echo.size.0, echo.size.1)),
                     ..default()
-                },
-                Transform::from_xyz(echo.pos.0, echo.pos.1, 1.9),
+                }
+            };
+            let mut tf = Transform::from_xyz(echo.pos.0, echo.pos.1, 1.9);
+            if echo.rotation_deg.abs() > 0.01 {
+                tf.rotation = Quat::from_rotation_z(echo.rotation_deg.to_radians());
+            }
+            commands.spawn((
+                SceneScoped,
+                echo_sprite,
+                tf,
                 Visibility::Hidden,
                 BloodEcho {
                     base_alpha: echo.alpha,
@@ -504,6 +566,7 @@ impl SceneClass {
 
 #[derive(Resource, Debug, Clone)]
 pub struct SceneRegistry {
+    pub story_name: String,
     pub initial_scene: String,
     pub initial_spawn: Vec2,
     pub scenes: HashMap<String, SceneClass>,
@@ -534,6 +597,7 @@ impl SceneRegistry {
             scenes.insert(sc.id.clone(), sc);
         }
         Self {
+            story_name: catalog.story_name,
             initial_scene: catalog.initial_scene,
             initial_spawn: Vec2::new(catalog.initial_spawn.0, catalog.initial_spawn.1),
             scenes,
@@ -543,6 +607,7 @@ impl SceneRegistry {
 
 #[derive(Resource, Debug, Clone)]
 pub struct ActiveScene {
+    pub story_name: String,
     pub current_id: String,
     pub current_title: String,
     pub environment: SceneEnvironment,
@@ -554,6 +619,7 @@ pub struct ActiveScene {
 impl Default for ActiveScene {
     fn default() -> Self {
         Self {
+            story_name: String::new(),
             current_id: String::new(),
             current_title: String::new(),
             environment: SceneEnvironment::Room,
@@ -704,7 +770,8 @@ impl Plugin for WorldPlugin {
                     animate_rain_and_neon,
                     update_hotspot_prompts,
                 )
-                    .chain(),
+                    .chain()
+                    .after(crate::stories::StorySystems),
             );
     }
 }
@@ -752,6 +819,7 @@ fn spawn_initial_world(
 ) {
     let srv = asset_server.as_deref();
 
+    active_scene.story_name = registry.story_name.clone();
     if let Some(initial) = registry.scenes.get(&registry.initial_scene) {
         active_scene.current_id = initial.id.clone();
         active_scene.current_title = initial.title.clone();
@@ -965,9 +1033,12 @@ fn handle_point_and_click_input(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     active_scene: Res<ActiveScene>,
-    ledger_modal: Res<LedgerModalOpen>,
-    mp_modal: Res<MultiplayerModalOpen>,
-    char_modal: Res<CharacterSelectModalOpen>,
+    (ledger_modal, mp_modal, char_modal, story_modal): (
+        Res<LedgerModalOpen>,
+        Res<MultiplayerModalOpen>,
+        Res<CharacterSelectModalOpen>,
+        Res<StorySelectModalOpen>,
+    ),
     blood_sight: Res<BloodSight>,
     ledger: Res<ClueLedger>,
     cam_q: Query<&Transform, (With<SceneCamera>, Without<ClickTargetMarker>)>,
@@ -982,7 +1053,7 @@ fn handle_point_and_click_input(
     mut enter_writer: EventWriter<EnterNodeEvent>,
     mut scene_writer: EventWriter<TransitionSceneEvent>,
 ) {
-    if ledger_modal.0 || mp_modal.open || char_modal.0 {
+    if ledger_modal.0 || mp_modal.open || char_modal.0 || story_modal.0 {
         return;
     }
     let clicked = mouse.just_pressed(MouseButton::Left) || mouse.just_pressed(MouseButton::Right);
@@ -1111,8 +1182,11 @@ fn move_detective_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     active_scene: Res<ActiveScene>,
-    mp_modal: Res<MultiplayerModalOpen>,
-    char_modal: Res<CharacterSelectModalOpen>,
+    (mp_modal, char_modal, story_modal): (
+        Res<MultiplayerModalOpen>,
+        Res<CharacterSelectModalOpen>,
+        Res<StorySelectModalOpen>,
+    ),
     colliders: Query<
         (&Transform, &SolidCollider),
         (
@@ -1149,7 +1223,7 @@ fn move_detective_player(
     };
 
     let mut key_dir = Vec2::ZERO;
-    if !mp_modal.open && !char_modal.0 {
+    if !mp_modal.open && !char_modal.0 && !story_modal.0 {
         if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
             key_dir.y += 1.0;
         }
@@ -1770,8 +1844,11 @@ enum NearbyCandidate {
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn update_hotspot_prompts(
     keys: Res<ButtonInput<KeyCode>>,
-    mp_modal: Res<MultiplayerModalOpen>,
-    char_modal: Res<CharacterSelectModalOpen>,
+    (mp_modal, char_modal, story_modal): (
+        Res<MultiplayerModalOpen>,
+        Res<CharacterSelectModalOpen>,
+        Res<StorySelectModalOpen>,
+    ),
     player_q: Query<
         &Transform,
         (
@@ -1873,6 +1950,7 @@ fn update_hotspot_prompts(
 
         if !mp_modal.open
             && !char_modal.0
+            && !story_modal.0
             && (keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Space))
         {
             match cand {
@@ -1925,51 +2003,61 @@ mod tests {
 
     #[test]
     fn scene_catalog_parses_and_all_doorways_link_to_valid_walkable_spawns() {
-        let catalog = ron::from_str::<SceneCatalog>(EMBEDDED_CASE_01_SCENES)
-            .expect("case_01_scenes.ron failed to deserialize");
-        let registry = SceneRegistry::from_catalog(catalog);
-
-        let initial = registry
-            .scenes
-            .get(&registry.initial_scene)
-            .expect("initial_scene must exist in SceneRegistry");
-        assert!(
-            !point_blocked_in_bounds(
-                registry.initial_spawn,
-                13.0,
-                Vec2::new(initial.walk_bounds.0, initial.walk_bounds.1),
-                &initial.static_obstacle_boxes()
-            ),
-            "initial_spawn must not overlap any collider in initial scene"
-        );
-
-        assert!(
-            registry.scenes.len() >= 3,
-            "Expected room, alley, and street scenes"
-        );
-
-        for (scene_id, scene) in &registry.scenes {
+        for story in crate::stories::STORIES {
+            let catalog = story.load_scene_catalog();
             assert!(
-                !scene.doorways.is_empty(),
-                "Scene '{scene_id}' should have at least one doorway"
+                !catalog.story_name.trim().is_empty(),
+                "SceneCatalog for '{}' must have a non-empty story_name",
+                story.id
             );
-            for dw in &scene.doorways {
-                let target = registry.scenes.get(&dw.target_scene_id).unwrap_or_else(|| {
-                    panic!(
-                        "Doorway '{}' in '{}' points to missing scene '{}'",
-                        dw.id, scene_id, dw.target_scene_id
-                    )
-                });
-                let spawn = Vec2::new(dw.target_spawn.0, dw.target_spawn.1);
-                let target_bounds = Vec2::new(target.walk_bounds.0, target.walk_bounds.1);
-                let target_obs = target.static_obstacle_boxes();
+            let registry = SceneRegistry::from_catalog(catalog);
+
+            let initial = registry
+                .scenes
+                .get(&registry.initial_scene)
+                .expect("initial_scene must exist in SceneRegistry");
+            assert!(
+                !point_blocked_in_bounds(
+                    registry.initial_spawn,
+                    13.0,
+                    Vec2::new(initial.walk_bounds.0, initial.walk_bounds.1),
+                    &initial.static_obstacle_boxes()
+                ),
+                "initial_spawn must not overlap any collider in initial scene of '{}'",
+                story.id
+            );
+
+            assert!(
+                registry.scenes.len() >= 3,
+                "Expected at least 3 linked scenes in '{}'",
+                story.id
+            );
+
+            for (scene_id, scene) in &registry.scenes {
                 assert!(
-                    !point_blocked_in_bounds(spawn, 13.0, target_bounds, &target_obs),
-                    "Doorway '{}' target_spawn {:?} is blocked inside '{}'",
-                    dw.id,
-                    spawn,
-                    target.id
+                    !scene.doorways.is_empty(),
+                    "Scene '{scene_id}' in '{}' should have at least one doorway",
+                    story.id
                 );
+                for dw in &scene.doorways {
+                    let target = registry.scenes.get(&dw.target_scene_id).unwrap_or_else(|| {
+                        panic!(
+                            "Doorway '{}' in '{}' (story '{}') points to missing scene '{}'",
+                            dw.id, scene_id, story.id, dw.target_scene_id
+                        )
+                    });
+                    let spawn = Vec2::new(dw.target_spawn.0, dw.target_spawn.1);
+                    let target_bounds = Vec2::new(target.walk_bounds.0, target.walk_bounds.1);
+                    let target_obs = target.static_obstacle_boxes();
+                    assert!(
+                        !point_blocked_in_bounds(spawn, 13.0, target_bounds, &target_obs),
+                        "Doorway '{}' target_spawn {:?} is blocked inside '{}' (story '{}')",
+                        dw.id,
+                        spawn,
+                        target.id,
+                        story.id
+                    );
+                }
             }
         }
     }
@@ -1983,6 +2071,7 @@ mod tests {
             .add_plugins((
                 crate::stats::StatsPlugin,
                 crate::senses::SensesPlugin,
+                crate::stories::StoriesPlugin,
                 crate::narrative::NarrativePlugin,
                 crate::net::NetPlugin,
                 WorldPlugin,
@@ -2004,5 +2093,93 @@ mod tests {
         let active = app.world().resource::<ActiveScene>();
         assert_eq!(active.current_id, "harbor_street");
         assert_eq!(active.environment, SceneEnvironment::Street);
+    }
+
+    #[test]
+    fn all_scene_sprite_paths_and_prop_kit_assets_exist_on_disk() {
+        let assets_root = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"));
+        let mut referenced = Vec::new();
+        for story in crate::stories::STORIES {
+            let catalog = story.load_scene_catalog();
+            for scene in &catalog.scenes {
+                for s in &scene.surfaces {
+                    if let Some(p) = &s.sprite_path {
+                        referenced.push(p.clone());
+                    }
+                }
+                for p in &scene.props {
+                    if let Some(sp) = &p.sprite_path {
+                        referenced.push(sp.clone());
+                    }
+                }
+                for c in &scene.characters {
+                    referenced.push(c.sprite_path.clone());
+                }
+                for cl in &scene.clues {
+                    if let Some(sp) = &cl.sprite_path {
+                        referenced.push(sp.clone());
+                    }
+                }
+                for e in &scene.blood_echoes {
+                    if let Some(sp) = &e.sprite_path {
+                        referenced.push(sp.clone());
+                    }
+                }
+            }
+        }
+
+        assert!(
+            referenced.len() >= 20,
+            "Expected all existing scene props, clues, rugs, and blood echoes to have sprites"
+        );
+        for rel in &referenced {
+            let full = assets_root.join(rel);
+            assert!(
+                full.is_file(),
+                "Referenced scene asset '{}' does not exist at {}",
+                rel,
+                full.display()
+            );
+        }
+
+        let scene_setting_kit = [
+            "props/blood_pool.png",
+            "props/blood_drag_smear.png",
+            "props/blood_drops.png",
+            "props/blood_bootprint.png",
+            "props/echo_pool.png",
+            "props/echo_smear.png",
+            "props/echo_drops.png",
+            "props/echo_bootprint.png",
+            "props/alley_dumpster.png",
+            "props/overturned_poker_table.png",
+            "props/mahogany_bar.png",
+            "props/velvet_curtain.png",
+            "props/crimson_rug.png",
+            "props/scattered_papers.png",
+            "props/wooden_crates.png",
+            "props/rusted_drainpipe.png",
+            "props/police_cruiser.png",
+            "props/streetlamp.png",
+            "props/detective_desk.png",
+            "props/filing_cabinet.png",
+            "props/vintage_jukebox.png",
+            "props/club_table_chairs.png",
+            "props/neon_lounge_sign.png",
+            "props/phone_booth.png",
+            "props/metal_trash_cans.png",
+            "props/harbor_bollard_barrels.png",
+            "props/fire_hydrant.png",
+            "props/morgue_autopsy_table.png",
+            "props/occult_candelabra.png",
+            "props/crime_chalk_markers.png",
+        ];
+
+        for rel in scene_setting_kit {
+            let full = assets_root.join(rel);
+            let img = image::open(&full)
+                .unwrap_or_else(|e| panic!("Failed to decode {}: {e}", full.display()));
+            assert!(img.width() >= 32 && img.height() >= 32);
+        }
     }
 }

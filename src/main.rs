@@ -2,6 +2,7 @@ mod narrative;
 mod net;
 mod senses;
 mod stats;
+mod stories;
 mod ui;
 mod world;
 
@@ -13,6 +14,7 @@ use narrative::NarrativePlugin;
 use net::NetPlugin;
 use senses::SensesPlugin;
 use stats::StatsPlugin;
+use stories::StoriesPlugin;
 use ui::NoirUiPlugin;
 use world::WorldPlugin;
 
@@ -63,6 +65,7 @@ fn main() {
     app.add_plugins((
         StatsPlugin,
         SensesPlugin,
+        StoriesPlugin,
         NarrativePlugin,
         NetPlugin,
         WorldPlugin,
@@ -100,13 +103,14 @@ mod tests {
     use stats::{DetectiveId, DetectiveSheet};
 
     #[test]
-    fn headless_ecs_schedule_runs_and_switches_all_four_detectives() {
+    fn headless_ecs_schedule_picks_story_then_character_and_switches_detectives() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, InputPlugin))
             .insert_resource(ClearColor(Color::BLACK))
             .add_plugins((
                 StatsPlugin,
                 SensesPlugin,
+                StoriesPlugin,
                 NarrativePlugin,
                 NetPlugin,
                 WorldPlugin,
@@ -116,18 +120,72 @@ mod tests {
         app.update();
         app.update();
 
-        // Character selection modal opens on startup
+        // 1. Story selection screen opens first on launch; Character selection waits until a story is picked
+        assert!(app.world().resource::<ui::StorySelectModalOpen>().0);
+        assert!(!app.world().resource::<ui::CharacterSelectModalOpen>().0);
+        assert_eq!(
+            app.world().resource::<world::SceneRegistry>().story_name,
+            "The Velvet Alibi"
+        );
+
+        // 2. Pick Story #2 ("The Morgue Covenant") -> loads its SceneCatalog & opens Character Select
+        app.world_mut()
+            .send_event(stories::SelectStoryEvent::pick_and_choose_character(
+                "case_02",
+            ));
+        app.update();
+
+        assert!(!app.world().resource::<ui::StorySelectModalOpen>().0);
         assert!(app.world().resource::<ui::CharacterSelectModalOpen>().0);
+        assert_eq!(
+            app.world().resource::<world::SceneRegistry>().story_name,
+            "The Morgue Covenant"
+        );
+        assert_eq!(
+            app.world().resource::<world::ActiveScene>().story_name,
+            "The Morgue Covenant"
+        );
+        assert_eq!(
+            app.world().resource::<world::ActiveScene>().current_id,
+            "morgue_autopsy"
+        );
+        assert_eq!(
+            app.world().resource::<narrative::CaseLibrary>().title,
+            "THE MORGUE COVENANT"
+        );
+        assert!(app
+            .world()
+            .resource::<narrative::NarrativeState>()
+            .other_speaker
+            .contains("VALE"));
+
+        // 3. Pick Story #1 ("The Velvet Alibi") -> loads its SceneCatalog & opens Character Select
+        app.world_mut()
+            .send_event(stories::SelectStoryEvent::pick_and_choose_character(
+                "case_01",
+            ));
+        app.update();
+
+        assert!(!app.world().resource::<ui::StorySelectModalOpen>().0);
+        assert!(app.world().resource::<ui::CharacterSelectModalOpen>().0);
+        assert_eq!(
+            app.world().resource::<world::ActiveScene>().story_name,
+            "The Velvet Alibi"
+        );
+        assert_eq!(
+            app.world().resource::<world::ActiveScene>().current_id,
+            "velvet_backroom"
+        );
 
         let nar = app.world().resource::<narrative::NarrativeState>();
         assert!(nar.other_line.contains("Richey"));
         assert!(!nar.current_choices.is_empty());
 
-        // Switch through Lucker & Ron, Pinckney, and Zombie Graves and verify live sync
+        // 4. Switch through Lucker & Ron, Pinckney, and Zombie Guinan and verify live sync
         for (det, expected_addr) in [
             (DetectiveId::LuckerAndRon, "Ron"),
             (DetectiveId::Pinckney, "Pinckney"),
-            (DetectiveId::Zombie, "Graves"),
+            (DetectiveId::Zombie, "Guinan"),
             (DetectiveId::Richey, "Richey"),
         ] {
             *app.world_mut().resource_mut::<DetectiveSheet>() = DetectiveSheet::from_character(det);

@@ -65,6 +65,7 @@ fn main() {
     let port: u16 = args
         .next()
         .and_then(|s| s.parse().ok())
+        .or_else(|| std::env::var("PORT").ok().and_then(|s| s.parse().ok()))
         .unwrap_or(8080);
     let root = resolve_project_root(args.next());
 

@@ -6,7 +6,7 @@ use crate::stats::{DetectiveId, DetectiveSheet};
 /// - Det. Richey (Vampire): Vampire Senses (Blood Sight & Heartbeats)
 /// - Det. Lucker & Ron (Ghost/Host): Phantom Sight (Death Echoes & Guilt Auras)
 /// - Det. Pinckney (Werewolf): Lupine Scent (Spoor Plumes & Fear-Sweat)
-/// - Det. Graves (Zombie): Mortis Sight (Necrotic Psychometry & Nerve Vitals)
+/// - Det. Guinan (Zombie): Mortis Sight (Necrotic Psychometry & Nerve Vitals)
 #[derive(Resource, Debug, Default)]
 pub struct BloodSight {
     pub active: bool,
@@ -95,9 +95,14 @@ impl Plugin for SensesPlugin {
 fn toggle_blood_sight_input(
     keys: Res<ButtonInput<KeyCode>>,
     mp_modal: Option<Res<crate::ui::MultiplayerModalOpen>>,
+    char_modal: Option<Res<crate::ui::CharacterSelectModalOpen>>,
+    story_modal: Option<Res<crate::ui::StorySelectModalOpen>>,
     mut blood_sight: ResMut<BloodSight>,
 ) {
-    if mp_modal.map(|m| m.open).unwrap_or(false) {
+    if mp_modal.map(|m| m.open).unwrap_or(false)
+        || char_modal.map(|c| c.0).unwrap_or(false)
+        || story_modal.map(|s| s.0).unwrap_or(false)
+    {
         return;
     }
     if keys.just_pressed(KeyCode::Tab) {

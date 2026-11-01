@@ -1,7 +1,6 @@
 .git
 .gitignore
 /target/
-/web/pkg/
 /wasm-bindgen-*/
 /wasm-bindgen.tar.gz
 *.swp

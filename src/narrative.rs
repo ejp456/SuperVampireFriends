@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::cypher::{ActiveCypherModal, CypherDef, OpenCypherEvent};
 use crate::senses::{BloodSight, SetSuspectPulseEvent};
 use crate::stats::{DetectiveId, DetectiveSheet, Faculty};
 
@@ -56,6 +57,8 @@ pub struct DialogueChoice {
     #[serde(default)]
     pub requires_blood_sight: bool,
     #[serde(default)]
+    pub open_cypher: Option<String>,
+    #[serde(default)]
     pub skill_check: Option<SkillCheckSpec>,
 }
 
@@ -84,6 +87,8 @@ pub struct CaseData {
     pub subtitle: String,
     pub opening_node: String,
     pub clues: Vec<ClueDef>,
+    #[serde(default)]
+    pub cyphers: Vec<CypherDef>,
     pub nodes: Vec<DialogueNode>,
 }
 
@@ -93,6 +98,8 @@ pub struct CaseLibrary {
     pub opening_node: String,
     pub clues: HashMap<String, ClueDef>,
     pub clue_order: Vec<String>,
+    pub cyphers: HashMap<String, CypherDef>,
+    pub cypher_order: Vec<String>,
     pub nodes: HashMap<String, DialogueNode>,
 }
 
@@ -104,6 +111,12 @@ impl CaseLibrary {
             clue_order.push(c.id.clone());
             clues.insert(c.id.clone(), c);
         }
+        let mut cyphers = HashMap::new();
+        let mut cypher_order = Vec::new();
+        for cy in data.cyphers {
+            cypher_order.push(cy.id.clone());
+            cyphers.insert(cy.id.clone(), cy);
+        }
         let mut nodes = HashMap::new();
         for n in data.nodes {
             nodes.insert(n.id.clone(), n);
@@ -113,6 +126,8 @@ impl CaseLibrary {
             opening_node: data.opening_node,
             clues,
             clue_order,
+            cyphers,
+            cypher_order,
             nodes,
         }
     }
@@ -122,6 +137,8 @@ impl CaseLibrary {
 pub struct ClueLedger {
     pub discovered: Vec<String>,
     pub discovered_set: HashSet<String>,
+    pub solved_cyphers: Vec<String>,
+    pub solved_cypher_set: HashSet<String>,
     pub passed_checks: HashSet<String>,
     pub failed_checks: HashSet<String>,
 }
@@ -138,6 +155,19 @@ impl ClueLedger {
 
     pub fn has_clue(&self, clue_id: &str) -> bool {
         self.discovered_set.contains(clue_id)
+    }
+
+    pub fn mark_cypher_solved(&mut self, cypher_id: &str) -> bool {
+        if self.solved_cypher_set.insert(cypher_id.to_string()) {
+            self.solved_cyphers.push(cypher_id.to_string());
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn is_cypher_solved(&self, cypher_id: &str) -> bool {
+        self.solved_cypher_set.contains(cypher_id)
     }
 }
 
@@ -247,12 +277,14 @@ fn handle_choice_hotkeys(
     mp_modal: Option<Res<crate::ui::MultiplayerModalOpen>>,
     char_modal: Option<Res<crate::ui::CharacterSelectModalOpen>>,
     story_modal: Option<Res<crate::ui::StorySelectModalOpen>>,
+    cypher_modal: Option<Res<ActiveCypherModal>>,
     state: Res<NarrativeState>,
     mut writer: EventWriter<SelectChoiceEvent>,
 ) {
     if mp_modal.map(|m| m.open).unwrap_or(false)
         || char_modal.map(|c| c.0).unwrap_or(false)
         || story_modal.map(|s| s.0).unwrap_or(false)
+        || cypher_modal.map(|cy| cy.open).unwrap_or(false)
     {
         return;
     }
@@ -278,12 +310,18 @@ fn process_select_choice_events(
     mut sheet: ResMut<DetectiveSheet>,
     mut ledger: ResMut<ClueLedger>,
     mut node_writer: EventWriter<EnterNodeEvent>,
+    mut cypher_writer: EventWriter<OpenCypherEvent>,
 ) {
     for SelectChoiceEvent(idx) in events.read().copied() {
         let Some(resolved) = state.current_choices.get(idx).cloned() else {
             continue;
         };
         if resolved.locked_check_failed {
+            continue;
+        };
+
+        if let Some(cid) = &resolved.raw.open_cypher {
+            cypher_writer.send(OpenCypherEvent(cid.clone()));
             continue;
         }
 
@@ -295,10 +333,16 @@ fn process_select_choice_events(
                 sheet.add_hunger(check.hunger_cost);
             }
             let roll = sheet.roll_check(check.faculty, check.dc);
+            let bonus_note = if sheet.cypher_bonus > 0 {
+                format!(" [+{} Cypher]", sheet.cypher_bonus)
+            } else {
+                String::new()
+            };
             let badge = format!(
-                "{} {} vs DC {} ({})",
+                "{} {}{} vs DC {} ({})",
                 check.faculty.name_for(sheet.character),
                 roll.total,
+                bonus_note,
                 roll.dc,
                 if roll.succeeded { "Passed" } else { "Failed" }
             );
@@ -522,6 +566,14 @@ mod tests {
 
         assert!(lib.nodes.contains_key(&lib.opening_node));
 
+        for (cid, cy) in &lib.cyphers {
+            assert!(
+                lib.clues.contains_key(&cy.grants_clue),
+                "Cypher '{cid}' grants unknown clue '{}'",
+                cy.grants_clue
+            );
+        }
+
         for (id, node) in &lib.nodes {
             for clue_id in &node.grants_clues {
                 assert!(
@@ -530,7 +582,13 @@ mod tests {
                 );
             }
             for choice in &node.choices {
-                if let Some(sc) = &choice.skill_check {
+                if let Some(cy_id) = &choice.open_cypher {
+                    assert!(
+                        lib.cyphers.contains_key(cy_id),
+                        "Node '{id}' choice '{}' opens missing cypher '{cy_id}'",
+                        choice.label
+                    );
+                } else if let Some(sc) = &choice.skill_check {
                     assert!(
                         lib.nodes.contains_key(&sc.success_node),
                         "Node '{id}' check '{}' missing success_node '{}'",

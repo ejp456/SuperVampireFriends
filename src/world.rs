@@ -5,6 +5,7 @@ use bevy::{prelude::*, render::camera::Viewport, window::PrimaryWindow};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    cypher::{ActiveCypherModal, OpenCypherEvent},
     narrative::{ClueLedger, EnterNodeEvent, NarrativeState},
     net::NetSession,
     senses::{BloodEcho, BloodSight, HeartbeatPulseRing, MundaneAmbiance, SuspectHeartbeat},
@@ -53,6 +54,8 @@ pub struct SceneClass {
     pub props: Vec<SceneProp>,
     pub characters: Vec<SceneCharacter>,
     pub clues: Vec<SceneClue>,
+    #[serde(default)]
+    pub cyphers: Vec<SceneCypher>,
     pub blood_echoes: Vec<SceneBloodEcho>,
     pub doorways: Vec<SceneDoorwaySpec>,
 }
@@ -126,6 +129,28 @@ pub struct SceneClue {
     pub blood_echo_alpha: Option<f32>,
 }
 
+/// Interactive Cypher Puzzle placed directly in a 2D noir crime scene.
+/// Solving the referenced `CypherDef` awards a strong clue and raises dice roll odds!
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SceneCypher {
+    pub id: String,
+    pub label: String,
+    pub cypher_id: String,
+    #[serde(default)]
+    pub sprite_path: Option<String>,
+    pub pos: (f32, f32),
+    pub size: (f32, f32),
+    pub z: f32,
+    pub color_rgba: (f32, f32, f32, f32),
+    #[serde(default)]
+    pub collider_half: Option<(f32, f32)>,
+    pub interact_radius: f32,
+    #[serde(default)]
+    pub requires_blood_sight_unless_clue: Option<String>,
+    #[serde(default)]
+    pub blood_echo_alpha: Option<f32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SceneBloodEcho {
     pub pos: (f32, f32),
@@ -180,6 +205,11 @@ impl SceneClass {
         for cl in &self.clues {
             if let Some((hx, hy)) = cl.collider_half {
                 boxes.push((Vec2::new(cl.pos.0, cl.pos.1), Vec2::new(hx, hy)));
+            }
+        }
+        for cy in &self.cyphers {
+            if let Some((hx, hy)) = cy.collider_half {
+                boxes.push((Vec2::new(cy.pos.0, cy.pos.1), Vec2::new(hx, hy)));
             }
         }
         boxes
@@ -336,6 +366,7 @@ impl SceneClass {
                 InteractableHotspot {
                     label: ch.display_name.clone(),
                     node_id: ch.dialogue_node.clone(),
+                    cypher_id: None,
                     radius: ch.interact_radius,
                     requires_blood_sight_unless_clue: None,
                 },
@@ -415,6 +446,7 @@ impl SceneClass {
                 InteractableHotspot {
                     label: cl.label.clone(),
                     node_id: cl.node_id.clone(),
+                    cypher_id: None,
                     radius: cl.interact_radius,
                     requires_blood_sight_unless_clue: cl.requires_blood_sight_unless_clue.clone(),
                 },
@@ -427,6 +459,88 @@ impl SceneClass {
             }
 
             if let Some(alpha) = cl.blood_echo_alpha {
+                ent.insert((
+                    Visibility::Hidden,
+                    BloodEcho {
+                        base_alpha: alpha,
+                        phase_offset: 0.0,
+                    },
+                ));
+            }
+        }
+
+        // 5b. Interactive Scene Cypher Puzzles
+        for cy in &self.cyphers {
+            let cypher_sprite = if let Some(tex) = cy.sprite_path.as_deref().and_then(&load_tex) {
+                Sprite {
+                    image: tex,
+                    color: Color::srgba(1.0, 1.0, 1.0, cy.color_rgba.3),
+                    custom_size: Some(Vec2::new(cy.size.0, cy.size.1)),
+                    ..default()
+                }
+            } else {
+                Sprite {
+                    color: Color::srgba(
+                        cy.color_rgba.0,
+                        cy.color_rgba.1,
+                        cy.color_rgba.2,
+                        cy.color_rgba.3,
+                    ),
+                    custom_size: Some(Vec2::new(cy.size.0, cy.size.1)),
+                    ..default()
+                }
+            };
+            let top_offset = cy.size.1 * 0.5 + 10.0;
+            let glow_size = Vec2::new(cy.size.0 + 14.0, cy.size.1 + 14.0);
+            let cy_id_badge = cy.cypher_id.clone();
+            let cy_id_glow = cy.cypher_id.clone();
+
+            let mut ent = commands.spawn((
+                SceneScoped,
+                cypher_sprite,
+                Transform::from_xyz(cy.pos.0, cy.pos.1, cy.z),
+                InteractableHotspot {
+                    label: cy.label.clone(),
+                    node_id: String::new(),
+                    cypher_id: Some(cy.cypher_id.clone()),
+                    radius: cy.interact_radius,
+                    requires_blood_sight_unless_clue: cy.requires_blood_sight_unless_clue.clone(),
+                },
+            ));
+
+            ent.with_children(|parent| {
+                parent.spawn((
+                    Sprite {
+                        color: Color::srgba(0.96, 0.78, 0.28, 0.22),
+                        custom_size: Some(glow_size),
+                        ..default()
+                    },
+                    Transform::from_xyz(0.0, 0.0, -0.15),
+                    SceneCypherGlowPlate {
+                        cypher_id: cy_id_glow,
+                    },
+                ));
+                parent.spawn((
+                    Text2d::new("[CYPHER]"),
+                    TextFont {
+                        font_size: 10.5,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.98, 0.84, 0.38)),
+                    Transform::from_xyz(0.0, top_offset, 1.2),
+                    SceneCypherBadgeText {
+                        cypher_id: cy_id_badge,
+                    },
+                ));
+            });
+
+            if let Some((hx, hy)) = cy.collider_half {
+                ent.insert(SolidCollider {
+                    half_extents: Vec2::new(hx, hy),
+                });
+            }
+
+            if let Some(alpha) = cy.blood_echo_alpha {
                 ent.insert((
                     Visibility::Hidden,
                     BloodEcho {
@@ -650,6 +764,7 @@ pub enum PendingInteraction {
         pos: Vec2,
         radius: f32,
         node_id: String,
+        cypher_id: Option<String>,
     },
     Doorway {
         pos: Vec2,
@@ -708,8 +823,19 @@ pub struct SolidCollider {
 pub struct InteractableHotspot {
     pub label: String,
     pub node_id: String,
+    pub cypher_id: Option<String>,
     pub radius: f32,
     pub requires_blood_sight_unless_clue: Option<String>,
+}
+
+#[derive(Component)]
+pub struct SceneCypherGlowPlate {
+    pub cypher_id: String,
+}
+
+#[derive(Component)]
+pub struct SceneCypherBadgeText {
+    pub cypher_id: String,
 }
 
 #[derive(Component, Clone)]
@@ -768,6 +894,7 @@ impl Plugin for WorldPlugin {
                     sync_remote_peer_entities,
                     camera_follow_player,
                     animate_rain_and_neon,
+                    sync_scene_cypher_badges,
                     update_hotspot_prompts,
                 )
                     .chain()
@@ -927,6 +1054,7 @@ fn apply_scene_transitions(
     registry: Res<SceneRegistry>,
     mut active_scene: ResMut<ActiveScene>,
     nar_state: Res<NarrativeState>,
+    mut cypher_modal: Option<ResMut<ActiveCypherModal>>,
     asset_server: Option<Res<AssetServer>>,
     scoped_q: Query<Entity, With<SceneScoped>>,
     heartbeats_q: Query<&SuspectHeartbeat>,
@@ -941,6 +1069,10 @@ fn apply_scene_transitions(
     let Some(next_scene) = registry.scenes.get(&ev.target_scene_id) else {
         return;
     };
+
+    if let Some(ref mut cm) = cypher_modal {
+        cm.close();
+    }
 
     // Preserve any suspect heartbeat states (e.g. lie spikes) before despawning old room
     for hb in &heartbeats_q {
@@ -1033,11 +1165,12 @@ fn handle_point_and_click_input(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     active_scene: Res<ActiveScene>,
-    (ledger_modal, mp_modal, char_modal, story_modal): (
+    (ledger_modal, mp_modal, char_modal, story_modal, cypher_modal): (
         Res<LedgerModalOpen>,
         Res<MultiplayerModalOpen>,
         Res<CharacterSelectModalOpen>,
         Res<StorySelectModalOpen>,
+        Option<Res<ActiveCypherModal>>,
     ),
     blood_sight: Res<BloodSight>,
     ledger: Res<ClueLedger>,
@@ -1050,10 +1183,18 @@ fn handle_point_and_click_input(
     doorways: Query<(&Transform, &SceneDoorway), Without<ClickTargetMarker>>,
     mut player_q: Query<(&Transform, &mut DetectivePlayer), Without<ClickTargetMarker>>,
     mut marker_q: Query<(&mut Transform, &mut Visibility), With<ClickTargetMarker>>,
-    mut enter_writer: EventWriter<EnterNodeEvent>,
-    mut scene_writer: EventWriter<TransitionSceneEvent>,
+    (mut enter_writer, mut cypher_writer, mut scene_writer): (
+        EventWriter<EnterNodeEvent>,
+        EventWriter<OpenCypherEvent>,
+        EventWriter<TransitionSceneEvent>,
+    ),
 ) {
-    if ledger_modal.0 || mp_modal.open || char_modal.0 || story_modal.0 {
+    if ledger_modal.0
+        || mp_modal.open
+        || char_modal.0
+        || story_modal.0
+        || cypher_modal.as_deref().is_some_and(|m| m.open)
+    {
         return;
     }
     let clicked = mouse.just_pressed(MouseButton::Left) || mouse.just_pressed(MouseButton::Right);
@@ -1146,7 +1287,11 @@ fn handle_point_and_click_input(
             if let Ok((_, mut vis)) = marker_q.get_single_mut() {
                 *vis = Visibility::Hidden;
             }
-            enter_writer.send(EnterNodeEvent::fresh(hs.node_id.clone()));
+            if let Some(cid) = &hs.cypher_id {
+                cypher_writer.send(OpenCypherEvent(cid.clone()));
+            } else {
+                enter_writer.send(EnterNodeEvent::fresh(hs.node_id.clone()));
+            }
             return;
         }
 
@@ -1156,6 +1301,7 @@ fn handle_point_and_click_input(
             pos: h_pos,
             radius: hs.radius,
             node_id: hs.node_id.clone(),
+            cypher_id: hs.cypher_id.clone(),
         });
 
         if let Ok((mut mtf, mut mvis)) = marker_q.get_single_mut() {
@@ -1182,10 +1328,11 @@ fn move_detective_player(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     active_scene: Res<ActiveScene>,
-    (mp_modal, char_modal, story_modal): (
+    (mp_modal, char_modal, story_modal, cypher_modal): (
         Res<MultiplayerModalOpen>,
         Res<CharacterSelectModalOpen>,
         Res<StorySelectModalOpen>,
+        Option<Res<ActiveCypherModal>>,
     ),
     colliders: Query<
         (&Transform, &SolidCollider),
@@ -1215,15 +1362,22 @@ fn move_detective_player(
             Without<CharacterVisualSprite>,
         ),
     >,
-    mut enter_writer: EventWriter<EnterNodeEvent>,
-    mut scene_writer: EventWriter<TransitionSceneEvent>,
+    (mut enter_writer, mut cypher_writer, mut scene_writer): (
+        EventWriter<EnterNodeEvent>,
+        EventWriter<OpenCypherEvent>,
+        EventWriter<TransitionSceneEvent>,
+    ),
 ) {
     let Ok((mut player, mut transform)) = player_q.get_single_mut() else {
         return;
     };
 
     let mut key_dir = Vec2::ZERO;
-    if !mp_modal.open && !char_modal.0 && !story_modal.0 {
+    if !mp_modal.open
+        && !char_modal.0
+        && !story_modal.0
+        && !cypher_modal.as_deref().is_some_and(|m| m.open)
+    {
         if keys.pressed(KeyCode::KeyW) || keys.pressed(KeyCode::ArrowUp) {
             key_dir.y += 1.0;
         }
@@ -1315,6 +1469,7 @@ fn move_detective_player(
                 pos,
                 radius,
                 node_id,
+                cypher_id,
             } => {
                 if cur.distance(pos) <= radius + 6.0 || player.waypoints.is_empty() {
                     player.waypoints.clear();
@@ -1323,7 +1478,11 @@ fn move_detective_player(
                         *mvis = Visibility::Hidden;
                     }
                     if cur.distance(pos) <= radius + 24.0 {
-                        enter_writer.send(EnterNodeEvent::fresh(node_id));
+                        if let Some(cid) = cypher_id {
+                            cypher_writer.send(OpenCypherEvent(cid));
+                        } else {
+                            enter_writer.send(EnterNodeEvent::fresh(node_id));
+                        }
                     }
                 }
             }
@@ -1828,11 +1987,41 @@ fn animate_rain_and_neon(
     }
 }
 
+fn sync_scene_cypher_badges(
+    time: Res<Time>,
+    ledger: Res<ClueLedger>,
+    mut glow_q: Query<(&SceneCypherGlowPlate, &mut Sprite)>,
+    mut badge_q: Query<(&SceneCypherBadgeText, &mut Text2d, &mut TextColor)>,
+) {
+    let pulse = (time.elapsed_secs() * 2.8).sin().abs() * 0.12;
+    for (plate, mut sprite) in &mut glow_q {
+        if ledger.is_cypher_solved(&plate.cypher_id) {
+            sprite.color = Color::srgba(0.28, 0.86, 0.52, 0.20);
+        } else {
+            sprite.color = Color::srgba(0.96, 0.78, 0.28, 0.18 + pulse);
+        }
+    }
+    for (badge, mut txt, mut col) in &mut badge_q {
+        if ledger.is_cypher_solved(&badge.cypher_id) {
+            if txt.0 != "[✓ DECODED]" {
+                txt.0 = "[✓ DECODED]".to_string();
+            }
+            col.0 = Color::srgb(0.46, 0.92, 0.62);
+        } else {
+            if txt.0 != "[CYPHER]" {
+                txt.0 = "[CYPHER]".to_string();
+            }
+            col.0 = Color::srgb(0.98, 0.84, 0.38);
+        }
+    }
+}
+
 #[derive(Clone)]
 enum NearbyCandidate {
     Hotspot {
         label: String,
         node_id: String,
+        cypher_id: Option<String>,
     },
     Doorway {
         label: String,
@@ -1844,10 +2033,11 @@ enum NearbyCandidate {
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn update_hotspot_prompts(
     keys: Res<ButtonInput<KeyCode>>,
-    (mp_modal, char_modal, story_modal): (
+    (mp_modal, char_modal, story_modal, cypher_modal): (
         Res<MultiplayerModalOpen>,
         Res<CharacterSelectModalOpen>,
         Res<StorySelectModalOpen>,
+        Option<Res<ActiveCypherModal>>,
     ),
     player_q: Query<
         &Transform,
@@ -1876,8 +2066,11 @@ fn update_hotspot_prompts(
         (&mut Transform, &mut Visibility, &mut Text2d),
         (With<WorldPromptLabel>, Without<HotspotHighlightRing>),
     >,
-    mut enter_writer: EventWriter<EnterNodeEvent>,
-    mut scene_writer: EventWriter<TransitionSceneEvent>,
+    (mut enter_writer, mut cypher_writer, mut scene_writer): (
+        EventWriter<EnterNodeEvent>,
+        EventWriter<OpenCypherEvent>,
+        EventWriter<TransitionSceneEvent>,
+    ),
 ) {
     let Ok(player_tf) = player_q.get_single() else {
         return;
@@ -1901,6 +2094,7 @@ fn update_hotspot_prompts(
                 NearbyCandidate::Hotspot {
                     label: hs.label.clone(),
                     node_id: hs.node_id.clone(),
+                    cypher_id: hs.cypher_id.clone(),
                 },
             ));
         }
@@ -1924,9 +2118,17 @@ fn update_hotspot_prompts(
 
     if let Some((_, pos, cand)) = best {
         let display_label = match &cand {
-            NearbyCandidate::Hotspot { label, node_id } => {
+            NearbyCandidate::Hotspot {
+                label,
+                node_id,
+                cypher_id,
+            } => {
                 nearby.label = Some(label.clone());
-                nearby.node_id = Some(node_id.clone());
+                nearby.node_id = if cypher_id.is_some() {
+                    None
+                } else {
+                    Some(node_id.clone())
+                };
                 label.clone()
             }
             NearbyCandidate::Doorway { label, .. } => {
@@ -1951,11 +2153,20 @@ fn update_hotspot_prompts(
         if !mp_modal.open
             && !char_modal.0
             && !story_modal.0
+            && !cypher_modal.as_deref().is_some_and(|m| m.open)
             && (keys.just_pressed(KeyCode::KeyE) || keys.just_pressed(KeyCode::Space))
         {
             match cand {
-                NearbyCandidate::Hotspot { node_id, .. } => {
-                    enter_writer.send(EnterNodeEvent::fresh(node_id));
+                NearbyCandidate::Hotspot {
+                    node_id,
+                    cypher_id,
+                    ..
+                } => {
+                    if let Some(cid) = cypher_id {
+                        cypher_writer.send(OpenCypherEvent(cid));
+                    } else {
+                        enter_writer.send(EnterNodeEvent::fresh(node_id));
+                    }
                 }
                 NearbyCandidate::Doorway {
                     target_scene_id,
@@ -2073,6 +2284,7 @@ mod tests {
                 crate::senses::SensesPlugin,
                 crate::stories::StoriesPlugin,
                 crate::narrative::NarrativePlugin,
+                crate::cypher::CypherPlugin,
                 crate::net::NetPlugin,
                 WorldPlugin,
                 crate::ui::NoirUiPlugin,
@@ -2117,6 +2329,11 @@ mod tests {
                 }
                 for cl in &scene.clues {
                     if let Some(sp) = &cl.sprite_path {
+                        referenced.push(sp.clone());
+                    }
+                }
+                for cy in &scene.cyphers {
+                    if let Some(sp) = &cy.sprite_path {
                         referenced.push(sp.clone());
                     }
                 }

@@ -260,6 +260,8 @@ pub struct DetectiveSheet {
     pub pulse: i32,
     /// Supernatural strain (Thirst / Sync / Fury / Decay), from 0.0 to 5.0.
     pub hunger: f32,
+    /// Case-wide dice roll bonus earned by cracking cypher puzzles in the active story.
+    pub cypher_bonus: i32,
 }
 
 impl Default for DetectiveSheet {
@@ -278,6 +280,7 @@ impl DetectiveSheet {
             nocturne,
             pulse,
             hunger: 1.0,
+            cypher_bonus: 0,
         }
     }
 
@@ -327,9 +330,14 @@ impl DetectiveSheet {
         self.hunger = (self.hunger + delta).clamp(0.0, 5.0);
     }
 
+    /// Total modifier applied to 2d6 skill checks (`effective_stat` + solved `cypher_bonus`).
+    pub fn roll_modifier(&self, faculty: Faculty) -> i32 {
+        self.effective_stat(faculty) + self.cypher_bonus
+    }
+
     /// Exact Disco Elysium-style 2d6 probability where (1,1) always fails and (6,6) always succeeds.
     pub fn success_chance_percent(&self, faculty: Faculty, dc: i32) -> u8 {
-        let modifier = self.effective_stat(faculty);
+        let modifier = self.roll_modifier(faculty);
         let mut wins = 0u32;
         for d1 in 1..=6u8 {
             for d2 in 1..=6u8 {
@@ -344,7 +352,7 @@ impl DetectiveSheet {
     pub fn roll_check(&self, faculty: Faculty, dc: i32) -> RollResult {
         let d1 = fastrand::u8(1..=6);
         let d2 = fastrand::u8(1..=6);
-        let modifier = self.effective_stat(faculty);
+        let modifier = self.roll_modifier(faculty);
         evaluate_roll(d1, d2, modifier, dc)
     }
 }
@@ -453,5 +461,20 @@ mod tests {
         let sheet = DetectiveSheet::default();
         assert_eq!(sheet.success_chance_percent(Faculty::Deduction, 2), 97);
         assert_eq!(sheet.success_chance_percent(Faculty::Deduction, 30), 3);
+    }
+
+    #[test]
+    fn cypher_bonus_raises_roll_modifier_and_success_chance() {
+        let mut sheet = DetectiveSheet::from_character(DetectiveId::Richey);
+        // Richey base Pulse = 3; vs DC 10 needs 7+ on 2d6 -> 21/36 = 58%
+        let base_chance = sheet.success_chance_percent(Faculty::Pulse, 10);
+        assert_eq!(base_chance, 58);
+
+        sheet.cypher_bonus = 2;
+        assert_eq!(sheet.roll_modifier(Faculty::Pulse), 5);
+        // With +2 cypher bonus, modifier = 5; vs DC 10 needs 5+ on 2d6 -> 30/36 = 83%
+        let boosted_chance = sheet.success_chance_percent(Faculty::Pulse, 10);
+        assert_eq!(boosted_chance, 83);
+        assert!(boosted_chance > base_chance);
     }
 }

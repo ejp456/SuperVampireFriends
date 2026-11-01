@@ -97,11 +97,13 @@ fn toggle_blood_sight_input(
     mp_modal: Option<Res<crate::ui::MultiplayerModalOpen>>,
     char_modal: Option<Res<crate::ui::CharacterSelectModalOpen>>,
     story_modal: Option<Res<crate::ui::StorySelectModalOpen>>,
+    cypher_modal: Option<Res<crate::cypher::ActiveCypherModal>>,
     mut blood_sight: ResMut<BloodSight>,
 ) {
     if mp_modal.map(|m| m.open).unwrap_or(false)
         || char_modal.map(|c| c.0).unwrap_or(false)
         || story_modal.map(|s| s.0).unwrap_or(false)
+        || cypher_modal.map(|cy| cy.open).unwrap_or(false)
     {
         return;
     }

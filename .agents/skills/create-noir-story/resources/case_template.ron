@@ -23,6 +23,24 @@ CaseData(
             title: "Midnight Coin-Box Call",
             summary: "The corner phone booth places the suspect at the scene forty minutes early.",
         ),
+        ClueDef(
+            id: "clue_desk_cypher",
+            title: "Decoded Desk Slip: 'NORTH PIER'",
+            summary: "A Caesar-shifted desk note pinpoints the midnight rendezvous and sharpens every skill check.",
+        ),
+    ],
+    cyphers: [
+        CypherDef(
+            id: "cypher_desk_note",
+            title: "Coded Desk Blotter",
+            kind: Caesar(shift: 3),
+            solution: "NORTH PIER",
+            flavor: "Pinned beneath the brass inkwell on the detective desk is a ciphered slip.",
+            hint: "Margin scratch: 'Each letter shifted +3 forward (Cipher D -> Plain A).'",
+            solved_text: "Decoded 'NORTH PIER' — proving the meeting was pre-arranged and granting +2 to all 2d6 skill checks!",
+            grants_clue: "clue_desk_cypher",
+            roll_bonus: 2,
+        ),
     ],
     nodes: [
         DialogueNode(

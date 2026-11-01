@@ -17,7 +17,8 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::{prelude::Closure, JsCast};
 
 use crate::{
-    narrative::{ClueLedger, NarrativeState},
+    cypher::apply_cypher_solved,
+    narrative::{CaseLibrary, ClueLedger, NarrativeState},
     senses::{BloodSight, SetSuspectPulseEvent},
     stats::{DetectiveId, DetectiveSheet},
     stories::{ActiveStory, SelectStoryEvent, StorySystems},
@@ -45,6 +46,8 @@ pub enum NetPacket {
         #[serde(default)]
         story_id: String,
         discovered_clues: Vec<String>,
+        #[serde(default)]
+        solved_cyphers: Vec<String>,
     },
     StoryChanged {
         story_id: String,
@@ -66,6 +69,9 @@ pub enum NetPacket {
     },
     ClueDiscovered {
         clue_id: String,
+    },
+    CypherSolved {
+        cypher_id: String,
     },
     SuspectPulse {
         npc_id: String,
@@ -257,6 +263,7 @@ pub struct NetSession {
     transport: Mutex<TransportInner>,
     sync_timer: Timer,
     pub(crate) known_clues_sent: usize,
+    pub(crate) known_cyphers_sent: usize,
     pub(crate) last_broadcast_story_id: String,
 }
 
@@ -272,6 +279,7 @@ impl Default for NetSession {
             transport: Mutex::new(TransportInner::None),
             sync_timer: Timer::from_seconds(0.05, TimerMode::Repeating),
             known_clues_sent: 0,
+            known_cyphers_sent: 0,
             last_broadcast_story_id: String::new(),
         }
     }
@@ -432,6 +440,7 @@ fn handle_net_control_events(
                     session.peers.clear();
                     session.invite_code = code.clone();
                     session.known_clues_sent = ledger.discovered.len();
+                    session.known_cyphers_sent = ledger.solved_cyphers.len();
                     session.last_broadcast_story_id = active_story.story_id.clone();
                     session.status_message = format!(
                         "Hosting \"{}\" on port {bound_port}! Code: {code} (or 'LOCAL')",
@@ -454,6 +463,7 @@ fn handle_net_control_events(
                     session.peers.clear();
                     session.invite_code = code.clone();
                     session.known_clues_sent = ledger.discovered.len();
+                    session.known_cyphers_sent = ledger.solved_cyphers.len();
                     session.last_broadcast_story_id = active_story.story_id.clone();
                     session.status_message = format!(
                         "Hosting \"{}\" — Opening Room {code}...",
@@ -487,6 +497,7 @@ fn handle_net_control_events(
                     session.peers.clear();
                     session.invite_code = encode_invite_code(target);
                     session.known_clues_sent = ledger.discovered.len();
+                    session.known_cyphers_sent = ledger.solved_cyphers.len();
                     session.status_message = format!("Connected to case ({})!", session.invite_code);
                 }
                 Err(e) => {
@@ -508,6 +519,7 @@ fn handle_net_control_events(
                     session.peers.clear();
                     session.invite_code = clean.clone();
                     session.known_clues_sent = ledger.discovered.len();
+                    session.known_cyphers_sent = ledger.solved_cyphers.len();
                     session.status_message = format!("Joining Room {clean}...");
                 }
                 Err(e) => {
@@ -518,11 +530,12 @@ fn handle_net_control_events(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn poll_network_transport(
     mut session: ResMut<NetSession>,
     active_story: Res<ActiveStory>,
     mut story_modal: Option<ResMut<StorySelectModalOpen>>,
+    (library, blood_sight, mut sheet): (Res<CaseLibrary>, Res<BloodSight>, ResMut<DetectiveSheet>),
     mut ledger: ResMut<ClueLedger>,
     mut nar_state: ResMut<NarrativeState>,
     mut pulse_writer: EventWriter<SetSuspectPulseEvent>,
@@ -533,6 +546,7 @@ fn poll_network_transport(
     }
 
     let existing_clues = ledger.discovered.clone();
+    let existing_cyphers = ledger.solved_cyphers.clone();
     let hosted_story_id = active_story.story_id.clone();
     let mut incoming_events: Vec<NetPacket> = Vec::new();
     #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
@@ -559,6 +573,7 @@ fn poll_network_transport(
                             assigned_id: pid,
                             story_id: hosted_story_id.clone(),
                             discovered_clues: existing_clues.clone(),
+                            solved_cyphers: existing_cyphers.clone(),
                         });
                         clients.push(conn);
                         newly_connected_count += 1;
@@ -659,6 +674,7 @@ fn poll_network_transport(
                                 assigned_id: pid,
                                 story_id: hosted_story_id.clone(),
                                 discovered_clues: existing_clues.clone(),
+                                solved_cyphers: existing_cyphers.clone(),
                             }) {
                                 welcome_to_send.push(format!("PKT|{ser}"));
                             }
@@ -708,6 +724,7 @@ fn poll_network_transport(
                 assigned_id,
                 story_id,
                 discovered_clues,
+                solved_cyphers,
             } => {
                 if session.my_peer_id == 0 || session.my_peer_id == assigned_id {
                     session.my_peer_id = assigned_id;
@@ -718,6 +735,7 @@ fn poll_network_transport(
                         story_writer.send(SelectStoryEvent::sync_from_host(
                             story_id.clone(),
                             discovered_clues,
+                            solved_cyphers,
                         ));
                     } else {
                         let mut added_any = false;
@@ -726,7 +744,20 @@ fn poll_network_transport(
                                 added_any = true;
                             }
                         }
+                        for cy_id in solved_cyphers {
+                            if apply_cypher_solved(
+                                &cy_id,
+                                &library,
+                                blood_sight.active,
+                                &mut ledger,
+                                &mut sheet,
+                                &mut nar_state,
+                            ) {
+                                added_any = true;
+                            }
+                        }
                         session.known_clues_sent = ledger.discovered.len();
+                        session.known_cyphers_sent = ledger.solved_cyphers.len();
                         if added_any {
                             nar_state.generation += 1;
                         }
@@ -742,7 +773,11 @@ fn poll_network_transport(
                     && !story_id.is_empty()
                     && story_id != active_story.story_id
                 {
-                    story_writer.send(SelectStoryEvent::sync_from_host(story_id, Vec::new()));
+                    story_writer.send(SelectStoryEvent::sync_from_host(
+                        story_id,
+                        Vec::new(),
+                        Vec::new(),
+                    ));
                 }
             }
             NetPacket::PeerTransform {
@@ -777,6 +812,19 @@ fn poll_network_transport(
                 if ledger.add_clue(&clue_id) {
                     session.known_clues_sent = ledger.discovered.len();
                     nar_state.generation += 1;
+                }
+            }
+            NetPacket::CypherSolved { cypher_id } => {
+                if apply_cypher_solved(
+                    &cypher_id,
+                    &library,
+                    blood_sight.active,
+                    &mut ledger,
+                    &mut sheet,
+                    &mut nar_state,
+                ) {
+                    session.known_clues_sent = ledger.discovered.len();
+                    session.known_cyphers_sent = ledger.solved_cyphers.len();
                 }
             }
             NetPacket::SuspectPulse {
@@ -827,6 +875,15 @@ fn broadcast_local_state(
             });
         }
         session.known_clues_sent = ledger.discovered.len();
+    }
+
+    if ledger.solved_cyphers.len() > session.known_cyphers_sent {
+        for cy_id in &ledger.solved_cyphers[session.known_cyphers_sent..] {
+            outgoing.push(NetPacket::CypherSolved {
+                cypher_id: cy_id.clone(),
+            });
+        }
+        session.known_cyphers_sent = ledger.solved_cyphers.len();
     }
 
     for pev in pulse_events.read() {
@@ -917,6 +974,7 @@ mod tests {
             assigned_id: 2,
             story_id: "case_02".to_string(),
             discovered_clues: vec!["clue_staged_rug".to_string()],
+            solved_cyphers: vec!["cypher_morgue_manifest".to_string()],
         };
         let encoded = format!("{}\n", ron::to_string(&sample).unwrap());
         let parsed: NetPacket = ron::from_str(encoded.trim()).unwrap();
@@ -925,10 +983,12 @@ mod tests {
                 assigned_id,
                 story_id,
                 discovered_clues,
+                solved_cyphers,
             } => {
                 assert_eq!(assigned_id, 2);
                 assert_eq!(story_id, "case_02");
                 assert_eq!(discovered_clues, vec!["clue_staged_rug".to_string()]);
+                assert_eq!(solved_cyphers, vec!["cypher_morgue_manifest".to_string()]);
             }
             other => panic!("Unexpected packet: {other:?}"),
         }

@@ -164,6 +164,21 @@ SceneCatalog(
                     blood_echo_alpha: None,
                 ),
             ],
+            cyphers: [
+                // Western Union number-coded Covenant dispatch beside the cold-case cabinet
+                SceneCypher(
+                    id: "morgue_telegraph_cypher",
+                    label: "Coded Telegraph Slip [Cypher]",
+                    cypher_id: "cypher_morgue_manifest",
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (-196.0, 95.0),
+                    size: (40.0, 34.0),
+                    z: 3.1,
+                    color_rgba: (0.86, 0.96, 0.94, 1.0),
+                    collider_half: None,
+                    interact_radius: 80.0,
+                ),
+            ],
             blood_echoes: [
                 // Supernatural trail from autopsy table to Dr. Vale's hidden alcove
                 SceneBloodEcho(

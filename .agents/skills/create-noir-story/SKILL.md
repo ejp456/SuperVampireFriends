@@ -51,8 +51,9 @@ Wait for confirmation before Phase 3.
 
 ### Phase 3: Clues, Supernatural Senses & Detective Exclusives
 Confirm the investigative mechanics using `ask_question`:
-1. **Clue Web (6–9 clues recommended)**:
+1. **Clue Web (6–9 clues recommended) & Scene Cypher Puzzle**:
    - Include at least **1 supernatural-sense-gated hotspot** (`requires_blood_sight_unless_clue: Some("<clue_id>")` paired with a `SceneBloodEcho` trail leading to it when the player presses `[Tab]`).
+   - Include **1 interactive `SceneCypher` + `CypherDef`** (`Caesar(shift: N)`, `A1Z26`, or `Atbash`) placed on a desk, briefcase, or cabinet—solving it grants a strong `ClueDef` and raises the player's 2d6 skill-check roll modifier (`roll_bonus: 2`).
 2. **All 4 Playable Detectives**:
    - Use `{detective}`, `{sense}`, and `{strain}` placeholders in dialogue so NPCs dynamically address whichever character the player picks!
    - Include `PassiveVoice` whispers or `requires_character` exclusive options tailored to:

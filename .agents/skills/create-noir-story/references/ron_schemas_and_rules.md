@@ -82,6 +82,21 @@ SceneCatalog(
                     blood_echo_alpha: Some(0.65),
                 ),
             ],
+            cyphers: [
+                // Interactive scene cypher puzzle — opens the Cypher Decoder modal when clicked or [E]!
+                SceneCypher(
+                    id: "belfry_desk_cypher",
+                    label: "Coded Bellfounder Slip [Cypher]",
+                    cypher_id: "cypher_bellfounder_slip", // MUST exist in CaseData.cyphers!
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (-150.0, 86.0),
+                    size: (40.0, 34.0),
+                    z: 3.1,
+                    color_rgba: (0.96, 0.90, 0.78, 1.0),
+                    collider_half: None,
+                    interact_radius: 82.0,
+                ),
+            ],
             blood_echoes: [
                 // Invisible in normal sight; glows in each detective's signature color when [Tab] is active!
                 SceneBloodEcho(
@@ -137,6 +152,26 @@ CaseData(
             id: "clue_wax_seal",
             title: "Bellfounder's Wax Seal",
             summary: "Crimson sealing wax stamped with a broken hourglass.",
+        ),
+        ClueDef(
+            id: "clue_decoded_slip",
+            title: "Decoded Slip: 'BELL ROPE'",
+            summary: "Cracking the bellfounder's cypher reveals the sabotaged bell rope.",
+        ),
+    ],
+    cyphers: [
+        // Supported CypherKind variants: Caesar(shift: 1..=25) | A1Z26 | Atbash
+        // Engine auto-encrypts `solution`; solving grants `grants_clue` AND adds `roll_bonus` (+2 default) to ALL 2d6 skill checks!
+        CypherDef(
+            id: "cypher_bellfounder_slip",
+            title: "Bellfounder's Coded Slip",
+            kind: Caesar(shift: 3),
+            solution: "BELL ROPE",
+            flavor: "Pinned beside the ledger is an ink-stained slip written in shifted letters.",
+            hint: "Margin note: 'Every letter stepped +3 forward (Cipher D -> Plain A).'",
+            solved_text: "Decoded 'BELL ROPE' — unlocking a key clue and +2 to all 2d6 skill checks!",
+            grants_clue: "clue_decoded_slip",
+            roll_bonus: 2,
         ),
     ],
     nodes: [

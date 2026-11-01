@@ -109,6 +109,20 @@ SceneCatalog(
                     blood_echo_alpha: Some(0.65),
                 ),
             ],
+            cyphers: [
+                SceneCypher(
+                    id: "room_desk_cypher",
+                    label: "Coded Desk Blotter [Cypher]",
+                    cypher_id: "cypher_desk_note",
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (-175.0, 106.0),
+                    size: (40.0, 34.0),
+                    z: 3.1,
+                    color_rgba: (0.96, 0.90, 0.78, 1.0),
+                    collider_half: None,
+                    interact_radius: 82.0,
+                ),
+            ],
             blood_echoes: [
                 SceneBloodEcho(
                     pos: (95.0, -55.0),

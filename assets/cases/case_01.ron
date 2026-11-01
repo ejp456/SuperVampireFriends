@@ -48,6 +48,24 @@ CaseData(
             title: "Cruiser #419 Patrol Log",
             summary: "Miller's dash clipboard logs Car 419 parked on Harbor St. 40 minutes before the 911 call.",
         ),
+        ClueDef(
+            id: "clue_vance_cypher",
+            title: "Decoded Slip: 'LEFT HOLSTER'",
+            summary: "Vance's Caesar-coded valise note warns that Badge 419 wears a left-hip .38 for their 1:30 AM curtain payoff.",
+        ),
+    ],
+    cyphers: [
+        CypherDef(
+            id: "cypher_vance_valise",
+            title: "Vance's Coded Valise Slip",
+            kind: Caesar(shift: 3),
+            solution: "LEFT HOLSTER",
+            flavor: "Wedged inside the lining of Julian Vance's snapped calfskin valise in the SW corner is an encrypted insurance slip.",
+            hint: "Beside Vance's three-diamond cufflink crest is penciled: 'Every letter stepped +3 forward (Cipher D -> Plain A).'",
+            solved_text: "The shifted letters click into place: 'LEFT HOLSTER' — Vance recorded the exact southpaw draw of the crooked cop he met behind the velvet curtain! Your forensic instincts sharpen (+2 to all 2d6 skill checks).",
+            grants_clue: "clue_vance_cypher",
+            roll_bonus: 2,
+        ),
     ],
     nodes: [
         DialogueNode(
@@ -481,6 +499,12 @@ CaseData(
                     hide_if_clue: Some("clue_clara_testimony"),
                 ),
                 DialogueChoice(
+                    label: "\"I cracked Vance's valise cypher—'LEFT HOLSTER'. You know which cop carries left, Clara.\"",
+                    next_node: "clara_confesses",
+                    requires_clue: Some("clue_vance_cypher"),
+                    hide_if_clue: Some("clue_clara_testimony"),
+                ),
+                DialogueChoice(
                     label: "\"We'll talk in a minute.\"",
                     next_node: "LEAVE_CONVERSATION",
                 ),
@@ -570,6 +594,11 @@ CaseData(
                     label: "\"Cruiser 419 was parked out front forty minutes before the 911 call, Frank.\"",
                     next_node: "miller_confrontation",
                     requires_clue: Some("clue_prowl_car_log"),
+                ),
+                DialogueChoice(
+                    label: "\"Vance's decoded valise slip names your 'LEFT HOLSTER' for the 1:30 AM curtain payoff, Frank.\"",
+                    next_node: "miller_confrontation",
+                    requires_clue: Some("clue_vance_cypher"),
                 ),
                 DialogueChoice(
                     label: "\"Still looking around, Sergeant.\"",

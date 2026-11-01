@@ -43,6 +43,24 @@ CaseData(
             title: "Coast Guard Signal Tape",
             summary: "Lt. Miller was logged two miles out on Cutter #7 until 2:25 AM; he found Pier 9 already scrubbed.",
         ),
+        ClueDef(
+            id: "clue_covenant_cypher",
+            title: "Decoded Telegraph: 'GATE NINE'",
+            summary: "Dr. Vale's A1Z26 number-coded slip authorizes midnight Covenant hearse transport through Pier 9's Gate Nine.",
+        ),
+    ],
+    cyphers: [
+        CypherDef(
+            id: "cypher_morgue_manifest",
+            title: "Covenant Telegraph Cypher",
+            kind: A1Z26,
+            solution: "GATE NINE",
+            flavor: "Clipped beside the sub-basement cold-case cabinet is a Western Union number tape stamped with a silver caduceus.",
+            hint: "Harbor telegraph number code: 1 = A, 5 = E, 7 = G, 9 = I, 14 = N, 20 = T ('/' separates the two words).",
+            solved_text: "The numbers resolve into 'GATE NINE' — linking Dr. Vale's morgue suite straight to the private hearse gate at Pier 9! Your investigative focus surges (+2 to all 2d6 skill checks).",
+            grants_clue: "clue_covenant_cypher",
+            roll_bonus: 2,
+        ),
     ],
     nodes: [
         // ---------------- OPENING ARRIVAL ----------------
@@ -513,6 +531,11 @@ CaseData(
                     label: "\"Your own register logs Harlow here at 1:50 AM—forty minutes before he 'drowned'.\"",
                     next_node: "vale_pressed_timeline",
                     requires_clue: Some("clue_pre_drowning_timestamp"),
+                ),
+                DialogueChoice(
+                    label: "\"I decoded your caduceus telegraph tape—'GATE NINE'. You cleared the hearse from Pier 9 yourself.\"",
+                    next_node: "vale_final_confrontation",
+                    requires_clue: Some("clue_covenant_cypher"),
                 ),
                 DialogueChoice(
                     label: "[CONFRONT] \"The Covenant phials, the Pier 9 siphon, Gate Pass #09—you harvested Harlow, Doctor.\"",

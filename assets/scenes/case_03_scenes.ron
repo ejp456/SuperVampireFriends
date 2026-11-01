@@ -377,6 +377,21 @@ SceneCatalog(
                     blood_echo_alpha: None,
                 ),
             ],
+            cyphers: [
+                // Reversed Atbash apothecary ink-blotter on Madame Vespera's NE desk
+                SceneCypher(
+                    id: "salon_blotter_cypher",
+                    label: "Apothecary Ink-Blotter [Cypher]",
+                    cypher_id: "cypher_vespera_formula",
+                    sprite_path: Some("props/scattered_papers.png"),
+                    pos: (168.0, 124.0),
+                    size: (40.0, 34.0),
+                    z: 3.1,
+                    color_rgba: (0.94, 0.84, 0.98, 1.0),
+                    collider_half: None,
+                    interact_radius: 86.0,
+                ),
+            ],
             blood_echoes: [
                 // Supernatural chemical/boot trail from behind Vespera's bar straight out the East alley door
                 SceneBloodEcho(

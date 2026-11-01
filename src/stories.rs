@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
+    cypher::ActiveCypherModal,
     narrative::{CaseData, CaseLibrary, ClueLedger, EnterNodeEvent, NarrativeState},
     net::NetSession,
     senses::BloodSight,
@@ -139,6 +140,7 @@ pub struct StorySummary {
     pub synopsis: String,
     pub scene_titles: Vec<String>,
     pub clue_count: usize,
+    pub cypher_count: usize,
     pub accent_rgb: (f32, f32, f32),
 }
 
@@ -162,6 +164,7 @@ impl Default for StoryCatalog {
                     synopsis: entry.synopsis.to_string(),
                     scene_titles,
                     clue_count: case.clues.len(),
+                    cypher_count: case.cyphers.len(),
                     accent_rgb: entry.accent_rgb,
                 }
             })
@@ -195,6 +198,7 @@ pub struct SelectStoryEvent {
     pub story_id: String,
     pub open_character_select: bool,
     pub initial_clues: Vec<String>,
+    pub initial_cyphers: Vec<String>,
 }
 
 impl SelectStoryEvent {
@@ -203,14 +207,20 @@ impl SelectStoryEvent {
             story_id: story_id.into(),
             open_character_select: true,
             initial_clues: Vec::new(),
+            initial_cyphers: Vec::new(),
         }
     }
 
-    pub fn sync_from_host(story_id: impl Into<String>, initial_clues: Vec<String>) -> Self {
+    pub fn sync_from_host(
+        story_id: impl Into<String>,
+        initial_clues: Vec<String>,
+        initial_cyphers: Vec<String>,
+    ) -> Self {
         Self {
             story_id: story_id.into(),
             open_character_select: false,
             initial_clues,
+            initial_cyphers,
         }
     }
 }
@@ -250,10 +260,11 @@ fn apply_select_story_events(
         ResMut<BloodSight>,
         ResMut<NetSession>,
     ),
-    (mut story_modal, mut char_modal, mut ledger_modal): (
+    (mut story_modal, mut char_modal, mut ledger_modal, mut cypher_modal): (
         ResMut<StorySelectModalOpen>,
         ResMut<CharacterSelectModalOpen>,
         ResMut<LedgerModalOpen>,
+        Option<ResMut<ActiveCypherModal>>,
     ),
     scoped_q: Query<Entity, With<SceneScoped>>,
     mut player_q: Query<
@@ -357,7 +368,17 @@ fn apply_select_story_events(
     for cid in &ev.initial_clues {
         clue_ledger.add_clue(cid);
     }
+    sheet.cypher_bonus = 0;
+    for cy_id in &ev.initial_cyphers {
+        if let Some(def) = case_library.cyphers.get(cy_id) {
+            if clue_ledger.mark_cypher_solved(cy_id) {
+                clue_ledger.add_clue(&def.grants_clue);
+                sheet.cypher_bonus += def.roll_bonus.max(0);
+            }
+        }
+    }
     session.known_clues_sent = clue_ledger.discovered.len();
+    session.known_cyphers_sent = clue_ledger.solved_cyphers.len();
 
     blood_sight.active = false;
     sheet.hunger = 1.0;
@@ -372,6 +393,9 @@ fn apply_select_story_events(
     // 3. Advance from Story Selection to Character Selection (or straight into hosted Co-op)
     story_modal.0 = false;
     ledger_modal.0 = false;
+    if let Some(ref mut cm) = cypher_modal {
+        cm.close();
+    }
     if ev.open_character_select {
         char_modal.0 = true;
     }
@@ -432,6 +456,30 @@ mod tests {
                     cl.node_id
                 );
             }
+            for cy in &sc.cyphers {
+                assert!(
+                    lib.cyphers.contains_key(&cy.cypher_id),
+                    "SceneCypher '{}' in story '{story_label}' references missing cypher_id '{}'",
+                    cy.id,
+                    cy.cypher_id
+                );
+            }
+        }
+
+        for (cid, cy) in &lib.cyphers {
+            assert!(
+                lib.clues.contains_key(&cy.grants_clue),
+                "CypherDef '{cid}' in story '{story_label}' grants unknown clue '{}'",
+                cy.grants_clue
+            );
+            assert!(
+                !cy.ciphertext().trim().is_empty(),
+                "CypherDef '{cid}' in story '{story_label}' produced empty ciphertext"
+            );
+            assert!(
+                cy.roll_bonus > 0,
+                "CypherDef '{cid}' in story '{story_label}' must raise dice roll success with roll_bonus > 0"
+            );
         }
 
         for (nid, node) in &lib.nodes {
@@ -446,6 +494,12 @@ mod tests {
                     assert!(
                         lib.clues.contains_key(req),
                         "Choice in node '{nid}' (story '{story_label}') requires unknown clue '{req}'"
+                    );
+                }
+                if let Some(cy_id) = &choice.open_cypher {
+                    assert!(
+                        lib.cyphers.contains_key(cy_id),
+                        "Choice in node '{nid}' (story '{story_label}') opens unknown cypher '{cy_id}'"
                     );
                 }
                 if let Some(sc) = &choice.skill_check {

@@ -43,6 +43,24 @@ CaseData(
             title: "Halide Burn Under Vespera's Glove",
             summary: "Beneath Madame Vespera's left black opera glove is an indelible violet-black silver-nitrate stain from snapping the concentrated ampoule.",
         ),
+        ClueDef(
+            id: "clue_apothecary_cypher",
+            title: "Decoded Blotter: 'SILVER VIAL'",
+            summary: "Madame Vespera's Atbash mirror-cipher blotter spells out 'SILVER VIAL' for Boudoir 4's 1:15 AM wormwood draught.",
+        ),
+    ],
+    cyphers: [
+        CypherDef(
+            id: "cypher_vespera_formula",
+            title: "Vespera's Alchemical Blotter",
+            kind: Atbash,
+            solution: "SILVER VIAL",
+            flavor: "Pressed into the green ink-blotter on Madame Vespera's NE reception desk is a reversed apothecary formula.",
+            hint: "Old-world Atbash mirror alphabet: A <-> Z, E <-> V, I <-> R, L <-> O, S <-> H.",
+            solved_text: "Inverted in the mirror key, 'HROEVI ERZO' reads 'SILVER VIAL' — proving Boudoir 4's goblet was dosed at the salon desk! Your deductive edge sharpens (+2 to all 2d6 skill checks).",
+            grants_clue: "clue_apothecary_cypher",
+            roll_bonus: 2,
+        ),
     ],
     nodes: [
         // ---------------- OPENING ARRIVAL ----------------
@@ -638,6 +656,12 @@ CaseData(
                     label: "[Confront Vespera] Present the alley silver ampoule, charred warrant & Sabine's exonerated bond.",
                     next_node: "vespera_final_confrontation",
                     requires_clue: Some("hidden_silver_ampoule"),
+                ),
+                DialogueChoice(
+                    label: "[Confront Vespera] Hold up her decoded 'SILVER VIAL' Atbash blotter from the salon desk.",
+                    next_node: "vespera_final_confrontation",
+                    requires_clue: Some("clue_apothecary_cypher"),
+                    hide_if_clue: Some("hidden_silver_ampoule"),
                 ),
                 DialogueChoice(
                     label: "[Confront Vespera] Indict her on the silver-halide glove burn & 1:15 AM tonic pour.",

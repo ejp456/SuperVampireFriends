@@ -177,6 +177,21 @@ SceneCatalog(
                     blood_echo_alpha: Some(0.68),
                 ),
             ],
+            cyphers: [
+                // Julian Vance's snapped calfskin valise containing a Caesar-shifted slip
+                SceneCypher(
+                    id: "backroom_valise_cypher",
+                    label: "Vance's Coded Valise [Cypher]",
+                    cypher_id: "cypher_vance_valise",
+                    sprite_path: Some("props/judicial_briefcase.png"),
+                    pos: (-168.0, -124.0),
+                    size: (56.0, 46.0),
+                    z: 2.5,
+                    color_rgba: (0.96, 0.90, 0.80, 1.0),
+                    collider_half: Some((18.0, 15.0)),
+                    interact_radius: 80.0,
+                ),
+            ],
             blood_echoes: [
                 SceneBloodEcho(pos: (-3.0, 168.0), size: (38.0, 28.0), alpha: 0.70, phase_offset: 0.0, sprite_path: Some("props/echo_pool.png")),
                 SceneBloodEcho(pos: (4.0, 146.0), size: (16.0, 32.0), alpha: 0.58, phase_offset: 0.45, sprite_path: Some("props/echo_smear.png"), rotation_deg: -3.0),

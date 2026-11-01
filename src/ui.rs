@@ -15,6 +15,9 @@ use bevy::{
 };
 
 use crate::{
+    cypher::{
+        format_caesar_wheel_lines, ActiveCypherModal, CypherKind, SubmitCypherGuessEvent,
+    },
     narrative::{CaseLibrary, ClueLedger, NarrativeState, SelectChoiceEvent},
     net::{DisconnectNetEvent, HostGameEvent, JoinGameEvent, NetRole, NetSession},
     senses::{BloodSight, SuspectHeartbeat},
@@ -190,6 +193,25 @@ enum MpButtonAction {
 }
 
 #[derive(Component)]
+struct CypherModalRoot;
+
+#[derive(Component)]
+struct CypherModalContent;
+
+#[derive(Component, Clone, Copy)]
+enum CypherBtnAction {
+    Close,
+    ShiftLeft,
+    ShiftRight,
+    ToggleTip,
+    TypeChar(char),
+    Space,
+    Backspace,
+    Clear,
+    Submit,
+}
+
+#[derive(Component)]
 struct PulseMonitorCard;
 
 #[derive(Component)]
@@ -211,6 +233,7 @@ struct ChoiceButtonIndex(usize);
 struct UiSyncTracker {
     last_generation: u64,
     last_character: Option<DetectiveId>,
+    last_cypher_bonus: i32,
 }
 
 pub struct NoirUiPlugin;
@@ -233,6 +256,7 @@ impl Plugin for NoirUiPlugin {
                     handle_story_select_interactions,
                     handle_char_select_interactions,
                     handle_mp_buttons,
+                    handle_cypher_modal_buttons,
                 )
                     .before(StorySystems),
             )
@@ -243,6 +267,7 @@ impl Plugin for NoirUiPlugin {
                     update_story_select_modal_ui,
                     update_char_select_modal_ui,
                     update_mp_modal_ui,
+                    sync_cypher_modal_ui,
                     update_pulse_monitor_widget,
                     sync_current_exchange_and_choices,
                     handle_choice_button_clicks,
@@ -466,6 +491,35 @@ fn build_split_screen_ui(
                                 MpButtonAction::JoinLocal,
                             );
                         });
+                    });
+
+                    // 3. Interactive Cypher Decoder Modal
+                    mid.spawn((
+                        Node {
+                            width: Val::Percent(92.0),
+                            max_height: Val::Percent(90.0),
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(16.0)),
+                            row_gap: Val::Px(10.0),
+                            border: UiRect::all(Val::Px(2.0)),
+                            overflow: Overflow::scroll_y(),
+                            display: Display::None,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.06, 0.06, 0.09, 0.98)),
+                        BorderColor(Color::srgb(0.88, 0.72, 0.36)),
+                        CypherModalRoot,
+                    ))
+                    .with_children(|c_modal| {
+                        c_modal.spawn((
+                            Node {
+                                width: Val::Percent(100.0),
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(9.0),
+                                ..default()
+                            },
+                            CypherModalContent,
+                        ));
                     });
                 });
 
@@ -724,7 +778,7 @@ fn build_story_select_overlay(root: &mut ChildBuilder, story_catalog: &StoryCata
                             ));
                             titles.spawn((
                                 Text::new(
-                                    "Pick a story (click or press 1–2) to load its SceneCatalog & Case File, then choose your Detective. Press [V] anytime to switch stories.",
+                                    "Pick a story (click or press 1–3) to load its SceneCatalog & Case File, then choose your Detective. Press [V] anytime to switch stories.",
                                 ),
                                 TextFont {
                                     font_size: 12.5,
@@ -815,12 +869,22 @@ fn spawn_story_select_card(parent: &mut ChildBuilder, story: &StorySummary, num:
                     TextColor(Color::srgb(0.97, 0.94, 0.88)),
                 ));
 
+                let cypher_meta = if story.cypher_count > 0 {
+                    format!(
+                        "   •   {} Cypher{}",
+                        story.cypher_count,
+                        if story.cypher_count == 1 { "" } else { "s" }
+                    )
+                } else {
+                    String::new()
+                };
                 top.spawn((
                     Text::new(format!(
-                        "{}   |   {} Scenes   •   {} Clues",
+                        "{}   |   {} Scenes   •   {} Clues{}",
                         story.setting_line,
                         story.scene_titles.len(),
-                        story.clue_count
+                        story.clue_count,
+                        cypher_meta
                     )),
                     TextFont {
                         font_size: 12.0,
@@ -1210,8 +1274,10 @@ fn spawn_mp_btn(parent: &mut ChildBuilder, label: &str, action: MpButtonAction) 
 
 fn apply_selected_character(sheet: &mut DetectiveSheet, chosen: DetectiveId) {
     let current_strain = sheet.hunger;
+    let current_cypher_bonus = sheet.cypher_bonus;
     *sheet = DetectiveSheet::from_character(chosen);
     sheet.hunger = current_strain;
+    sheet.cypher_bonus = current_cypher_bonus;
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -1219,16 +1285,20 @@ fn handle_hud_shortcuts_and_coop_typing(
     keys: Res<ButtonInput<KeyCode>>,
     mut key_events: EventReader<KeyboardInput>,
     (story_catalog, active_story): (Res<StoryCatalog>, Res<ActiveStory>),
-    (mut story_open, mut ledger_open, mut char_open, mut mp_open): (
+    (mut story_open, mut ledger_open, mut char_open, mut mp_open, mut cypher_modal): (
         ResMut<StorySelectModalOpen>,
         ResMut<LedgerModalOpen>,
         ResMut<CharacterSelectModalOpen>,
         ResMut<MultiplayerModalOpen>,
+        Option<ResMut<ActiveCypherModal>>,
     ),
     mut sheet: ResMut<DetectiveSheet>,
     mut nar_state: ResMut<NarrativeState>,
-    mut join_writer: EventWriter<JoinGameEvent>,
-    mut story_writer: EventWriter<SelectStoryEvent>,
+    (mut join_writer, mut story_writer, mut submit_cypher_writer): (
+        EventWriter<JoinGameEvent>,
+        EventWriter<SelectStoryEvent>,
+        EventWriter<SubmitCypherGuessEvent>,
+    ),
     mut bar_btns: ParamSet<(
         Query<&Interaction, (Changed<Interaction>, With<OpenStoryBarBtn>)>,
         Query<&Interaction, (Changed<Interaction>, With<OpenCharBarBtn>)>,
@@ -1242,6 +1312,9 @@ fn handle_hud_shortcuts_and_coop_typing(
                 char_open.0 = false;
                 mp_open.open = false;
                 ledger_open.0 = false;
+                if let Some(ref mut cm) = cypher_modal {
+                    cm.close();
+                }
             }
         }
     }
@@ -1253,6 +1326,9 @@ fn handle_hud_shortcuts_and_coop_typing(
                 story_open.0 = false;
                 mp_open.open = false;
                 ledger_open.0 = false;
+                if let Some(ref mut cm) = cypher_modal {
+                    cm.close();
+                }
             }
         }
     }
@@ -1264,7 +1340,64 @@ fn handle_hud_shortcuts_and_coop_typing(
                 story_open.0 = false;
                 char_open.0 = false;
                 ledger_open.0 = false;
+                if let Some(ref mut cm) = cypher_modal {
+                    cm.close();
+                }
             }
+        }
+    }
+
+    if let Some(ref mut cm) = cypher_modal {
+        if cm.open {
+            let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
+            for ev in key_events.read() {
+                if ev.state != ButtonState::Pressed {
+                    continue;
+                }
+                match &ev.logical_key {
+                    Key::Escape => {
+                        cm.close();
+                    }
+                    Key::Backspace => {
+                        cm.typed_input.pop();
+                        cm.revision += 1;
+                    }
+                    Key::Enter => {
+                        submit_cypher_writer.send(SubmitCypherGuessEvent);
+                    }
+                    Key::Space => {
+                        if !cm.typed_input.ends_with(' ') && cm.typed_input.len() < 36 {
+                            cm.typed_input.push(' ');
+                            cm.revision += 1;
+                        }
+                    }
+                    Key::ArrowLeft => {
+                        cm.dial_shift = (cm.dial_shift + 25) % 26;
+                        cm.revision += 1;
+                    }
+                    Key::ArrowRight => {
+                        cm.dial_shift = (cm.dial_shift + 1) % 26;
+                        cm.revision += 1;
+                    }
+                    Key::Character(s) => {
+                        if !ctrl {
+                            for ch in s.chars() {
+                                if ch == '?' {
+                                    cm.show_extra_tip = !cm.show_extra_tip;
+                                    cm.revision += 1;
+                                } else if (ch.is_ascii_alphanumeric() || ch == ' ')
+                                    && cm.typed_input.len() < 36
+                                {
+                                    cm.typed_input.push(ch.to_ascii_uppercase());
+                                    cm.revision += 1;
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            return;
         }
     }
 
@@ -1805,6 +1938,11 @@ fn update_minimal_hud(
         } else {
             String::new()
         };
+        let cypher_tag = if sheet.cypher_bonus > 0 {
+            format!("  •  CYPHER +{}", sheet.cypher_bonus)
+        } else {
+            String::new()
+        };
         let loc_title = match (
             active_scene.story_name.is_empty(),
             active_scene.current_title.is_empty(),
@@ -1814,7 +1952,7 @@ fn update_minimal_hud(
             _ => library.title.clone(),
         };
         txt.0 = format!(
-            "{}  |  {}  |  {} {}  {} {}  {} {}  {} {}  |  {} {}{}",
+            "{}  |  {}  |  {} {}  {} {}  {} {}  {} {}  |  {} {}{}{}",
             sheet.character.display_name(),
             loc_title,
             Faculty::Deduction.code_for(sheet.character),
@@ -1827,6 +1965,7 @@ fn update_minimal_hud(
             sheet.effective_stat(Faculty::Pulse),
             sheet.character.strain_label(),
             bar,
+            cypher_tag,
             sight_tag,
         );
     }
@@ -1835,14 +1974,585 @@ fn update_minimal_hud(
         if let Some(lbl) = &nearby.label {
             txt.0 = format!("Click / [E] {lbl}");
         } else {
+            let cypher_status = if library.cypher_order.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "  •  Cyphers ({}/{})",
+                    ledger.solved_cyphers.len(),
+                    library.cypher_order.len()
+                )
+            };
             txt.0 = format!(
-                "Click to Walk  •  Tab: {}  •  L: Clues ({}/{})",
+                "Click to Walk  •  Tab: {}  •  L: Clues ({}/{}){}",
                 sheet.character.sense_name(),
                 ledger.discovered.len(),
-                library.clue_order.len()
+                library.clue_order.len(),
+                cypher_status
             );
         }
     }
+}
+
+fn spawn_cypher_btn(
+    parent: &mut ChildBuilder,
+    label: &str,
+    action: CypherBtnAction,
+    bg_rgb: (f32, f32, f32),
+    border_rgb: (f32, f32, f32),
+) {
+    parent
+        .spawn((
+            Button,
+            Node {
+                padding: UiRect::axes(Val::Px(8.0), Val::Px(5.0)),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(bg_rgb.0, bg_rgb.1, bg_rgb.2)),
+            BorderColor(Color::srgb(border_rgb.0, border_rgb.1, border_rgb.2)),
+            action,
+        ))
+        .with_children(|b| {
+            b.spawn((
+                Text::new(label),
+                TextFont {
+                    font_size: 11.8,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.95, 0.93, 0.88)),
+            ));
+        });
+}
+
+fn handle_cypher_modal_buttons(
+    mut interactions: Query<
+        (&Interaction, &CypherBtnAction, &mut BackgroundColor),
+        Changed<Interaction>,
+    >,
+    mut cypher_modal: Option<ResMut<ActiveCypherModal>>,
+    mut submit_writer: EventWriter<SubmitCypherGuessEvent>,
+) {
+    let Some(ref mut cm) = cypher_modal else {
+        return;
+    };
+    if !cm.open {
+        return;
+    }
+
+    for (inter, action, mut bg) in &mut interactions {
+        match *inter {
+            Interaction::Pressed => {
+                bg.0 = Color::srgb(0.32, 0.26, 0.16);
+                match *action {
+                    CypherBtnAction::Close => {
+                        cm.close();
+                    }
+                    CypherBtnAction::ShiftLeft => {
+                        cm.dial_shift = (cm.dial_shift + 25) % 26;
+                        cm.revision += 1;
+                    }
+                    CypherBtnAction::ShiftRight => {
+                        cm.dial_shift = (cm.dial_shift + 1) % 26;
+                        cm.revision += 1;
+                    }
+                    CypherBtnAction::ToggleTip => {
+                        cm.show_extra_tip = !cm.show_extra_tip;
+                        cm.revision += 1;
+                    }
+                    CypherBtnAction::TypeChar(ch) => {
+                        if cm.typed_input.len() < 36 {
+                            cm.typed_input.push(ch);
+                            cm.revision += 1;
+                        }
+                    }
+                    CypherBtnAction::Space => {
+                        if !cm.typed_input.ends_with(' ') && cm.typed_input.len() < 36 {
+                            cm.typed_input.push(' ');
+                            cm.revision += 1;
+                        }
+                    }
+                    CypherBtnAction::Backspace => {
+                        cm.typed_input.pop();
+                        cm.revision += 1;
+                    }
+                    CypherBtnAction::Clear => {
+                        cm.typed_input.clear();
+                        cm.revision += 1;
+                    }
+                    CypherBtnAction::Submit => {
+                        submit_writer.send(SubmitCypherGuessEvent);
+                    }
+                }
+            }
+            Interaction::Hovered => {
+                bg.0 = Color::srgb(0.24, 0.21, 0.18);
+            }
+            Interaction::None => {
+                bg.0 = match action {
+                    CypherBtnAction::Submit => Color::srgb(0.16, 0.26, 0.18),
+                    CypherBtnAction::Close => Color::srgb(0.20, 0.14, 0.16),
+                    _ => Color::srgb(0.14, 0.14, 0.19),
+                };
+            }
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+fn sync_cypher_modal_ui(
+    mut commands: Commands,
+    cypher_modal: Option<Res<ActiveCypherModal>>,
+    library: Res<CaseLibrary>,
+    ledger: Res<ClueLedger>,
+    mut root_q: Query<&mut Node, With<CypherModalRoot>>,
+    content_q: Query<(Entity, Option<&Children>), With<CypherModalContent>>,
+    mut last_rev: Local<u64>,
+    mut last_open: Local<bool>,
+) {
+    let Some(cm) = cypher_modal else {
+        return;
+    };
+
+    if let Ok(mut root_node) = root_q.get_single_mut() {
+        root_node.display = if cm.open {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
+    if cm.revision == *last_rev && cm.open == *last_open {
+        return;
+    }
+    *last_rev = cm.revision;
+    *last_open = cm.open;
+
+    let Ok((content_entity, children)) = content_q.get_single() else {
+        return;
+    };
+    if let Some(children) = children {
+        let list: Vec<Entity> = children.iter().copied().collect();
+        for ch in list {
+            commands.entity(ch).despawn_recursive();
+        }
+    }
+
+    if !cm.open {
+        return;
+    }
+    let Some(def) = library.cyphers.get(&cm.cypher_id) else {
+        return;
+    };
+
+    let already_solved = ledger.is_cypher_solved(&def.id);
+    let cipher_txt = def.ciphertext();
+    let pattern_hint = def.word_pattern_hint();
+    let extra_tip = def.detective_tip();
+
+    commands.entity(content_entity).with_children(|col| {
+        // 1. Header Bar
+        col.spawn(Node {
+            width: Val::Percent(100.0),
+            justify_content: JustifyContent::SpaceBetween,
+            align_items: AlignItems::Center,
+            column_gap: Val::Px(8.0),
+            ..default()
+        })
+        .with_children(|hdr| {
+            hdr.spawn(Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(2.0),
+                ..default()
+            })
+            .with_children(|titles| {
+                titles.spawn((
+                    Text::new(format!("🔐 {}", def.title.to_uppercase())),
+                    TextFont {
+                        font_size: 15.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.98, 0.86, 0.48)),
+                ));
+                titles.spawn((
+                    Text::new(format!(
+                        "{}   •   REWARD: +STRONG CLUE & +{} ALL DICE ROLLS",
+                        def.kind.badge_label(),
+                        def.roll_bonus
+                    )),
+                    TextFont {
+                        font_size: 11.2,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.62, 0.88, 0.74)),
+                ));
+            });
+
+            hdr.spawn(Node {
+                column_gap: Val::Px(6.0),
+                align_items: AlignItems::Center,
+                ..default()
+            })
+            .with_children(|btns| {
+                spawn_cypher_btn(
+                    btns,
+                    "[?] Forensic Tip",
+                    CypherBtnAction::ToggleTip,
+                    (0.16, 0.16, 0.24),
+                    (0.54, 0.62, 0.86),
+                );
+                spawn_cypher_btn(
+                    btns,
+                    "[Esc] Close",
+                    CypherBtnAction::Close,
+                    (0.20, 0.14, 0.16),
+                    (0.68, 0.44, 0.48),
+                );
+            });
+        });
+
+        // 2. Scene Context & Margin Hint
+        col.spawn((
+            Text::new(def.flavor.clone()),
+            TextFont {
+                font_size: 12.2,
+                ..default()
+            },
+            TextColor(Color::srgb(0.84, 0.83, 0.88)),
+        ));
+        col.spawn((
+            Text::new(format!("Margin Note: {}", def.hint)),
+            TextFont {
+                font_size: 12.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.96, 0.78, 0.44)),
+        ));
+        if cm.show_extra_tip && !extra_tip.is_empty() {
+            col.spawn((
+                Text::new(extra_tip),
+                TextFont {
+                    font_size: 11.8,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.58, 0.86, 0.96)),
+            ));
+        }
+
+        // 3. Encrypted Ciphertext Display Box
+        col.spawn((
+            Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::axes(Val::Px(12.0), Val::Px(8.0)),
+                row_gap: Val::Px(3.0),
+                border: UiRect::all(Val::Px(1.5)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.035, 0.035, 0.055)),
+            BorderColor(Color::srgb(0.76, 0.60, 0.28)),
+        ))
+        .with_children(|cbox| {
+            cbox.spawn((
+                Text::new("INTERCEPTED CIPHERTEXT:"),
+                TextFont {
+                    font_size: 10.5,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.68, 0.66, 0.62)),
+            ));
+            cbox.spawn((
+                Text::new(cipher_txt),
+                TextFont {
+                    font_size: 17.5,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.99, 0.88, 0.46)),
+            ));
+        });
+
+        // 4. Interactive Key Aid (Caesar Wheel / A1Z26 / Atbash)
+        col.spawn((
+            Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::axes(Val::Px(10.0), Val::Px(7.0)),
+                row_gap: Val::Px(5.0),
+                border: UiRect::all(Val::Px(1.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.08, 0.08, 0.12)),
+            BorderColor(Color::srgb(0.34, 0.38, 0.50)),
+        ))
+        .with_children(|kbox| match def.kind {
+            CypherKind::Caesar { .. } => {
+                kbox.spawn(Node {
+                    width: Val::Percent(100.0),
+                    justify_content: JustifyContent::SpaceBetween,
+                    align_items: AlignItems::Center,
+                    column_gap: Val::Px(8.0),
+                    ..default()
+                })
+                .with_children(|drow| {
+                    spawn_cypher_btn(
+                        drow,
+                        "◄ Dial -1",
+                        CypherBtnAction::ShiftLeft,
+                        (0.14, 0.16, 0.22),
+                        (0.48, 0.58, 0.80),
+                    );
+                    drow.spawn((
+                        Text::new(format!(
+                            "CAESAR KEY WHEEL — Shift Offset: +{}  (◄/► or Arrow Keys)",
+                            cm.dial_shift
+                        )),
+                        TextFont {
+                            font_size: 11.5,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.76, 0.86, 0.98)),
+                    ));
+                    spawn_cypher_btn(
+                        drow,
+                        "Dial +1 ►",
+                        CypherBtnAction::ShiftRight,
+                        (0.14, 0.16, 0.22),
+                        (0.48, 0.58, 0.80),
+                    );
+                });
+                let (c_line, p_line) = format_caesar_wheel_lines(cm.dial_shift);
+                kbox.spawn((
+                    Text::new(c_line),
+                    TextFont {
+                        font_size: 11.4,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.96, 0.82, 0.46)),
+                ));
+                kbox.spawn((
+                    Text::new(p_line),
+                    TextFont {
+                        font_size: 11.4,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.58, 0.94, 0.72)),
+                ));
+            }
+            CypherKind::A1Z26 => {
+                kbox.spawn((
+                    Text::new("TELEGRAPH NUMBER CODE KEY (1 = A ... 26 = Z,  '/' separates words):"),
+                    TextFont {
+                        font_size: 11.2,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.76, 0.86, 0.98)),
+                ));
+                kbox.spawn((
+                    Text::new("A=1  B=2  C=3  D=4  E=5  F=6  G=7  H=8  I=9  J=10  K=11  L=12  M=13"),
+                    TextFont {
+                        font_size: 11.4,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.88, 0.90, 0.94)),
+                ));
+                kbox.spawn((
+                    Text::new("N=14 O=15 P=16 Q=17 R=18 S=19 T=20 U=21 V=22 W=23 X=24 Y=25 Z=26"),
+                    TextFont {
+                        font_size: 11.4,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.88, 0.90, 0.94)),
+                ));
+            }
+            CypherKind::Atbash => {
+                kbox.spawn((
+                    Text::new("ALCHEMICAL MIRROR KEY (Each letter swaps with its opposite):"),
+                    TextFont {
+                        font_size: 11.2,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.84, 0.76, 0.98)),
+                ));
+                kbox.spawn((
+                    Text::new("A↔Z  B↔Y  C↔X  D↔W  E↔V  F↔U  G↔T  H↔S  I↔R  J↔Q  K↔P  L↔O  M↔N"),
+                    TextFont {
+                        font_size: 11.6,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.90, 0.88, 0.96)),
+                ));
+            }
+        });
+
+        // 5. Decoded Plaintext Input Box
+        col.spawn((
+            Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::axes(Val::Px(12.0), Val::Px(7.0)),
+                row_gap: Val::Px(3.0),
+                border: UiRect::all(Val::Px(1.5)),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.04, 0.05, 0.07)),
+            BorderColor(if already_solved {
+                Color::srgb(0.42, 0.88, 0.60)
+            } else {
+                Color::srgb(0.48, 0.66, 0.88)
+            }),
+        ))
+        .with_children(|ibox| {
+            ibox.spawn((
+                Text::new(format!("WORD PATTERN:  {pattern_hint}")),
+                TextFont {
+                    font_size: 11.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.68, 0.74, 0.84)),
+            ));
+            let display_typed = if cm.typed_input.is_empty() {
+                "Type decoded plaintext on keyboard or click letters below: _".to_string()
+            } else if already_solved {
+                format!("DECODED:  {}", cm.typed_input)
+            } else {
+                format!("DECODED:  {}_", cm.typed_input)
+            };
+            ibox.spawn((
+                Text::new(display_typed),
+                TextFont {
+                    font_size: 15.0,
+                    ..default()
+                },
+                TextColor(if already_solved {
+                    Color::srgb(0.56, 0.96, 0.72)
+                } else {
+                    Color::srgb(0.95, 0.96, 0.99)
+                }),
+            ));
+        });
+
+        // 6. Clickable Typewriter Keypad & Submit Action Bar (when unsolved)
+        if !already_solved {
+            for row_chars in ["ABCDEFGHIJKLM", "NOPQRSTUVWXYZ"] {
+                col.spawn(Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Row,
+                    flex_wrap: FlexWrap::Wrap,
+                    column_gap: Val::Px(4.0),
+                    row_gap: Val::Px(4.0),
+                    ..default()
+                })
+                .with_children(|krow| {
+                    for ch in row_chars.chars() {
+                        let s = ch.to_string();
+                        spawn_cypher_btn(
+                            krow,
+                            &s,
+                            CypherBtnAction::TypeChar(ch),
+                            (0.14, 0.14, 0.19),
+                            (0.34, 0.36, 0.46),
+                        );
+                    }
+                });
+            }
+
+            col.spawn(Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::Center,
+                flex_wrap: FlexWrap::Wrap,
+                column_gap: Val::Px(6.0),
+                row_gap: Val::Px(6.0),
+                ..default()
+            })
+            .with_children(|arow| {
+                arow.spawn(Node {
+                    column_gap: Val::Px(6.0),
+                    ..default()
+                })
+                .with_children(|left_btns| {
+                    spawn_cypher_btn(
+                        left_btns,
+                        "[Space]",
+                        CypherBtnAction::Space,
+                        (0.14, 0.14, 0.19),
+                        (0.38, 0.42, 0.54),
+                    );
+                    spawn_cypher_btn(
+                        left_btns,
+                        "[⌫ Back]",
+                        CypherBtnAction::Backspace,
+                        (0.14, 0.14, 0.19),
+                        (0.38, 0.42, 0.54),
+                    );
+                    spawn_cypher_btn(
+                        left_btns,
+                        "[Clear]",
+                        CypherBtnAction::Clear,
+                        (0.14, 0.14, 0.19),
+                        (0.38, 0.42, 0.54),
+                    );
+                });
+
+                spawn_cypher_btn(
+                    arow,
+                    "[Enter] Crack Cypher →",
+                    CypherBtnAction::Submit,
+                    (0.16, 0.28, 0.18),
+                    (0.48, 0.88, 0.62),
+                );
+            });
+        }
+
+        // 7. Feedback / Cracked Reward Banner
+        if let Some((msg, ok)) = &cm.feedback {
+            col.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::axes(Val::Px(11.0), Val::Px(8.0)),
+                    row_gap: Val::Px(5.0),
+                    border: UiRect::left(Val::Px(3.0)),
+                    ..default()
+                },
+                BackgroundColor(if *ok {
+                    Color::srgb(0.08, 0.18, 0.12)
+                } else {
+                    Color::srgb(0.20, 0.10, 0.11)
+                }),
+                BorderColor(if *ok {
+                    Color::srgb(0.46, 0.92, 0.64)
+                } else {
+                    Color::srgb(0.92, 0.44, 0.42)
+                }),
+            ))
+            .with_children(|fbox| {
+                fbox.spawn((
+                    Text::new(msg.clone()),
+                    TextFont {
+                        font_size: 12.6,
+                        ..default()
+                    },
+                    TextColor(if *ok {
+                        Color::srgb(0.64, 0.98, 0.76)
+                    } else {
+                        Color::srgb(0.96, 0.64, 0.60)
+                    }),
+                ));
+                if *ok {
+                    fbox.spawn((
+                        Text::new(def.solved_text.clone()),
+                        TextFont {
+                            font_size: 12.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.90, 0.92, 0.88)),
+                    ));
+                }
+            });
+        }
+    });
 }
 
 #[allow(clippy::type_complexity)]
@@ -1932,11 +2642,13 @@ fn sync_current_exchange_and_choices(
     mut tracker: Local<UiSyncTracker>,
 ) {
     let char_changed = tracker.last_character != Some(sheet.character);
-    if nar_state.generation == tracker.last_generation && !char_changed {
+    let bonus_changed = tracker.last_cypher_bonus != sheet.cypher_bonus;
+    if nar_state.generation == tracker.last_generation && !char_changed && !bonus_changed {
         return;
     }
     tracker.last_generation = nar_state.generation;
     tracker.last_character = Some(sheet.character);
+    tracker.last_cypher_bonus = sheet.cypher_bonus;
 
     let char_accent = sheet.character.accent_color();
 
@@ -2123,14 +2835,26 @@ fn sync_current_exchange_and_choices(
                         format!("{}. [{fac_name} — Failed] ", idx + 1)
                     } else {
                         let pct = sheet.success_chance_percent(sc.faculty, sc.dc);
-                        format!("{}. [{fac_name} {pct}%] ", idx + 1)
+                        if sheet.cypher_bonus > 0 {
+                            format!(
+                                "{}. [{fac_name} {pct}% (+{} Cypher)] ",
+                                idx + 1,
+                                sheet.cypher_bonus
+                            )
+                        } else {
+                            format!("{}. [{fac_name} {pct}%] ", idx + 1)
+                        }
                     }
+                } else if resolved.raw.open_cypher.is_some() {
+                    format!("{}. [CYPHER] ", idx + 1)
                 } else {
                     format!("{}. ", idx + 1)
                 };
 
                 let text_color = if resolved.locked_check_failed {
                     Color::srgb(0.48, 0.45, 0.50)
+                } else if resolved.raw.open_cypher.is_some() {
+                    Color::srgb(0.98, 0.84, 0.44)
                 } else if let Some(req_char) = resolved.raw.requires_character {
                     req_char.accent_color()
                 } else if let Some(sc) = &resolved.raw.skill_check {
@@ -2169,13 +2893,14 @@ fn sync_current_exchange_and_choices(
 fn handle_choice_button_clicks(
     story_open: Res<StorySelectModalOpen>,
     char_open: Res<CharacterSelectModalOpen>,
+    cypher_modal: Option<Res<ActiveCypherModal>>,
     mut interactions: Query<
         (&Interaction, &ChoiceButtonIndex, &mut BackgroundColor),
         Changed<Interaction>,
     >,
     mut writer: EventWriter<SelectChoiceEvent>,
 ) {
-    if story_open.0 || char_open.0 {
+    if story_open.0 || char_open.0 || cypher_modal.as_deref().is_some_and(|m| m.open) {
         return;
     }
     for (inter, idx, mut bg) in &mut interactions {
@@ -2204,6 +2929,7 @@ fn sync_ledger_modal(
     mut modal_root_q: Query<&mut Node, With<LedgerModalRoot>>,
     content_q: Query<(Entity, Option<&Children>), With<LedgerModalContent>>,
     mut last_count: Local<usize>,
+    mut last_cypher_bonus: Local<i32>,
     mut last_char: Local<Option<DetectiveId>>,
     mut last_story_title: Local<String>,
     mut initialized: Local<bool>,
@@ -2218,6 +2944,7 @@ fn sync_ledger_modal(
 
     if *initialized
         && *last_count == ledger.discovered.len()
+        && *last_cypher_bonus == sheet.cypher_bonus
         && *last_char == Some(sheet.character)
         && *last_story_title == library.title
     {
@@ -2225,6 +2952,7 @@ fn sync_ledger_modal(
     }
     *initialized = true;
     *last_count = ledger.discovered.len();
+    *last_cypher_bonus = sheet.cypher_bonus;
     *last_char = Some(sheet.character);
     *last_story_title = library.title.clone();
 
@@ -2239,6 +2967,32 @@ fn sync_ledger_modal(
     }
 
     commands.entity(content_entity).with_children(|col| {
+        if sheet.cypher_bonus > 0 {
+            col.spawn((
+                Node {
+                    padding: UiRect::axes(Val::Px(10.0), Val::Px(6.0)),
+                    border: UiRect::left(Val::Px(3.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.08, 0.18, 0.12)),
+                BorderColor(Color::srgb(0.46, 0.92, 0.62)),
+            ))
+            .with_children(|b| {
+                b.spawn((
+                    Text::new(format!(
+                        "★ DECODED CYPHER INSIGHT ACTIVE: +{} Bonus to All 2d6 Skill Checks ({}/{} Cyphers Cracked)",
+                        sheet.cypher_bonus,
+                        ledger.solved_cyphers.len(),
+                        library.cypher_order.len().max(ledger.solved_cyphers.len())
+                    )),
+                    TextFont {
+                        font_size: 12.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.64, 0.98, 0.76)),
+                ));
+            });
+        }
         col.spawn(Node {
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(2.0),

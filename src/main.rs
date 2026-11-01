@@ -1,3 +1,4 @@
+mod cypher;
 mod narrative;
 mod net;
 mod senses;
@@ -10,6 +11,7 @@ use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};
 #[cfg(not(target_arch = "wasm32"))]
 use bevy::window::{PrimaryWindow, WindowLevel};
 
+use cypher::CypherPlugin;
 use narrative::NarrativePlugin;
 use net::NetPlugin;
 use senses::SensesPlugin;
@@ -74,6 +76,7 @@ fn main() {
         SensesPlugin,
         StoriesPlugin,
         NarrativePlugin,
+        CypherPlugin,
         NetPlugin,
         WorldPlugin,
         NoirUiPlugin,
@@ -119,6 +122,7 @@ mod tests {
                 SensesPlugin,
                 StoriesPlugin,
                 NarrativePlugin,
+                CypherPlugin,
                 NetPlugin,
                 WorldPlugin,
                 NoirUiPlugin,
@@ -206,5 +210,37 @@ mod tests {
                 nar.other_line
             );
         }
+
+        // 5. Open a scene cypher puzzle, solve it, and verify both clue discovery & raised dice roll odds
+        app.world_mut()
+            .resource_mut::<ui::CharacterSelectModalOpen>()
+            .0 = false;
+        let odds_before = app
+            .world()
+            .resource::<DetectiveSheet>()
+            .success_chance_percent(stats::Faculty::Pulse, 10);
+
+        app.world_mut()
+            .send_event(cypher::OpenCypherEvent("cypher_vance_valise".to_string()));
+        app.update();
+        assert!(app.world().resource::<cypher::ActiveCypherModal>().open);
+
+        app.world_mut()
+            .resource_mut::<cypher::ActiveCypherModal>()
+            .typed_input = "LEFT HOLSTER".to_string();
+        app.world_mut().send_event(cypher::SubmitCypherGuessEvent);
+        app.update();
+
+        let ledger = app.world().resource::<narrative::ClueLedger>();
+        assert!(ledger.is_cypher_solved("cypher_vance_valise"));
+        assert!(ledger.has_clue("clue_vance_cypher"));
+
+        let sheet_after = app.world().resource::<DetectiveSheet>();
+        assert_eq!(sheet_after.cypher_bonus, 2);
+        let odds_after = sheet_after.success_chance_percent(stats::Faculty::Pulse, 10);
+        assert!(
+            odds_after > odds_before,
+            "Solving cypher must raise dice roll success chance ({odds_before}% -> {odds_after}%)"
+        );
     }
 }

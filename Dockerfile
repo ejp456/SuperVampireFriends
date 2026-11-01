@@ -1,13 +1,15 @@
 # ==============================================================================
 # Stage 1: Build Bevy WebAssembly Client & Rust WebSocket Co-op Relay Server
 # ==============================================================================
-FROM rust:1.85-bookworm AS builder
+FROM rust:1-bookworm AS builder
 
 WORKDIR /app
 
 RUN rustup target add wasm32-unknown-unknown \
-    && cargo install wasm-bindgen-cli --version 0.2.130 --locked
+    && curl -fsSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.130/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl.tar.gz \
+       | tar -xz -C /usr/local/bin --strip-components=1 wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen
 
+COPY .cargo ./.cargo
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY assets ./assets

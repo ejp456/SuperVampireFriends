@@ -2,6 +2,7 @@
 /wasm-bindgen-*
 /wasm-bindgen.tar.gz
 /.git
+/.github
 /.gitignore
 *.swp
 .DS_Store

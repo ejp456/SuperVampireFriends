@@ -25,6 +25,13 @@ fn main() {
     #[cfg(not(target_arch = "wasm32"))]
     let asset_path = if std::path::Path::new("assets/cases/case_01.ron").exists() {
         "assets".to_string()
+    } else if let Some(exe_assets) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.canonicalize().ok().or(Some(exe)))
+        .and_then(|exe| exe.parent().map(|dir| dir.join("assets")))
+        .filter(|dir| dir.join("cases/case_01.ron").exists())
+    {
+        exe_assets.to_string_lossy().into_owned()
     } else {
         concat!(env!("CARGO_MANIFEST_DIR"), "/assets").to_string()
     };

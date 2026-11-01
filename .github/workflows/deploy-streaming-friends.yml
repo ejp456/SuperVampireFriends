@@ -1,0 +1,208 @@
+name: Build & Push to streaming-friends-server (GCE)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      deploy_dir:
+        description: "Override target directory on VM (default: /opt/crimson-ledger)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-streaming-friends
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build WASM + Native Binaries & Push to GCE
+    # ubuntu-22.04 links against glibc 2.35 for compatibility across Ubuntu 22.04+ and Debian 12/13
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux windowing headers (Bevy native build)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            libx11-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxrandr-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            libwayland-dev \
+            libasound2-dev \
+            libudev-dev
+
+      - name: Install Rust stable toolchain + wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-bindgen-cli 0.2.130
+        run: |
+          curl -fsSL https://github.com/rustwasm/wasm-bindgen/releases/download/0.2.130/wasm-bindgen-0.2.130-x86_64-unknown-linux-musl.tar.gz \
+            | sudo tar -xz -C /usr/local/bin --strip-components=1 wasm-bindgen-0.2.130-x86_64-unknown-linux-musl/wasm-bindgen
+          wasm-bindgen --version
+
+      - name: Cache Cargo registry & build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit & integration tests
+        run: cargo test --bin vampire_noir_rpg
+
+      - name: Build WebAssembly game binary & JS bindings (web/pkg)
+        run: |
+          cargo build --release --target wasm32-unknown-unknown --bin vampire_noir_rpg
+          mkdir -p web/pkg
+          wasm-bindgen \
+            --out-dir web/pkg \
+            --target web \
+            --no-typescript \
+            --remove-name-section \
+            --remove-producers-section \
+            target/wasm32-unknown-unknown/release/vampire_noir_rpg.wasm
+          gzip -9 -k -f web/pkg/vampire_noir_rpg_bg.wasm web/pkg/vampire_noir_rpg.js
+
+      - name: Build native Linux game & relay server binaries
+        run: |
+          cargo build --release --bin vampire_noir_rpg
+          strip target/release/vampire_noir_rpg
+          rustc -O --edition 2021 src/bin/web_server.rs -o target/release/web_server
+          strip target/release/web_server
+
+      - name: Package deployment bundle for /opt/crimson-ledger
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p staging/scripts dist
+          cp target/release/vampire_noir_rpg staging/vampire_noir_rpg
+          cp target/release/web_server staging/web_server
+          cp run_wsl_server.sh staging/run_wsl_server.sh
+          cp scripts/wsl_server.py staging/scripts/wsl_server.py
+          chmod 0755 staging/vampire_noir_rpg staging/web_server staging/run_wsl_server.sh staging/scripts/wsl_server.py
+          cp -r web staging/web
+          cp -r assets staging/assets
+          printf "commit=%s\nbuilt_at=%s\n" "$GIT_SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > staging/BUILD_INFO.txt
+          tar -C staging -czf dist/crimson-ledger-deploy.tar.gz .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crimson-ledger-deploy
+          path: dist/crimson-ledger-deploy.tar.gz
+          retention-days: 7
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/586547591103/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc' }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT || 'github-svf-deployer@streaming-friends-server.iam.gserviceaccount.com' }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Push bundle & restart crimson-ledger.service on GCE VM
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'streaming-friends-server' }}
+          GCP_ZONE: ${{ vars.GCP_ZONE || 'northamerica-northeast2-b' }}
+          GCP_VM_NAME: ${{ vars.GCP_VM_NAME || 'instance-20261031-205001' }}
+          GCP_DEPLOY_DIR: ${{ inputs.deploy_dir || vars.GCP_DEPLOY_DIR || '/opt/crimson-ledger' }}
+          GCP_APP_OWNER: ${{ vars.GCP_APP_OWNER || 'etaipinckney' }}
+          GCP_SSH_USER: ${{ vars.GCP_SSH_USER }}
+          GCP_USE_IAP: ${{ vars.GCP_USE_IAP }}
+          GCP_POST_DEPLOY_CMD: ${{ vars.GCP_POST_DEPLOY_CMD }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          TARGET_HOST="$GCP_VM_NAME"
+          if [ -n "$GCP_SSH_USER" ]; then
+            TARGET_HOST="${GCP_SSH_USER}@${GCP_VM_NAME}"
+          fi
+
+          GCLOUD_NET_FLAGS=(
+            "--project=${GCP_PROJECT_ID}"
+            "--zone=${GCP_ZONE}"
+            "--ssh-key-expire-after=10m"
+            "--quiet"
+          )
+          if [ "$GCP_USE_IAP" = "true" ]; then
+            GCLOUD_NET_FLAGS+=("--tunnel-through-iap")
+          fi
+
+          REMOTE_ARCHIVE="/tmp/svf-deploy-${RUN_ID}.tar.gz"
+
+          echo "==> Uploading bundle to ${TARGET_HOST}:${REMOTE_ARCHIVE} ..."
+          gcloud compute scp \
+            "${GCLOUD_NET_FLAGS[@]}" \
+            dist/crimson-ledger-deploy.tar.gz \
+            "${TARGET_HOST}:${REMOTE_ARCHIVE}"
+
+          echo "==> Installing atomically into ${GCP_DEPLOY_DIR} on ${GCP_VM_NAME} ..."
+          gcloud compute ssh \
+            "${GCLOUD_NET_FLAGS[@]}" \
+            "${TARGET_HOST}" \
+            --command "DEPLOY_DIR=$(printf '%q' "$GCP_DEPLOY_DIR") APP_OWNER=$(printf '%q' "$GCP_APP_OWNER") REMOTE_ARCHIVE=$(printf '%q' "$REMOTE_ARCHIVE") POST_CMD=$(printf '%q' "$GCP_POST_DEPLOY_CMD") bash -s" << 'EOF'
+          set -euo pipefail
+
+          STAGE_DIR="/tmp/svf-stage-$$"
+          mkdir -p "$STAGE_DIR"
+          tar -xzf "$REMOTE_ARCHIVE" -C "$STAGE_DIR"
+          rm -f "$REMOTE_ARCHIVE"
+
+          sudo mkdir -p "$DEPLOY_DIR/scripts"
+
+          for subdir in web assets; do
+            sudo rm -rf "$DEPLOY_DIR/${subdir}.next"
+            sudo mv "$STAGE_DIR/${subdir}" "$DEPLOY_DIR/${subdir}.next"
+            sudo rm -rf "$DEPLOY_DIR/${subdir}.prev"
+            if [ -d "$DEPLOY_DIR/${subdir}" ]; then
+              sudo mv "$DEPLOY_DIR/${subdir}" "$DEPLOY_DIR/${subdir}.prev"
+            fi
+            sudo mv "$DEPLOY_DIR/${subdir}.next" "$DEPLOY_DIR/${subdir}"
+            sudo rm -rf "$DEPLOY_DIR/${subdir}.prev"
+          done
+
+          for bin_name in vampire_noir_rpg web_server run_wsl_server.sh; do
+            sudo install -m 0755 "$STAGE_DIR/${bin_name}" "$DEPLOY_DIR/${bin_name}.next"
+            sudo mv -f "$DEPLOY_DIR/${bin_name}.next" "$DEPLOY_DIR/${bin_name}"
+          done
+
+          sudo install -m 0755 "$STAGE_DIR/scripts/wsl_server.py" "$DEPLOY_DIR/scripts/wsl_server.py.next"
+          sudo mv -f "$DEPLOY_DIR/scripts/wsl_server.py.next" "$DEPLOY_DIR/scripts/wsl_server.py"
+          sudo cp "$STAGE_DIR/BUILD_INFO.txt" "$DEPLOY_DIR/BUILD_INFO.txt"
+
+          if id "$APP_OWNER" >/dev/null 2>&1; then
+            sudo chown -R "${APP_OWNER}:${APP_OWNER}" "$DEPLOY_DIR"
+          fi
+          sudo chmod -R a+rX "$DEPLOY_DIR"
+          sudo ln -sfn "$DEPLOY_DIR/vampire_noir_rpg" /usr/local/bin/vampire_noir_rpg
+
+          rm -rf "$STAGE_DIR"
+
+          if systemctl list-unit-files crimson-ledger.service >/dev/null 2>&1; then
+            echo "==> Restarting crimson-ledger.service ..."
+            sudo systemctl restart crimson-ledger.service
+            sudo systemctl is-active crimson-ledger.service
+          fi
+
+          if [ -n "${POST_CMD:-}" ]; then
+            echo "==> Running custom post-deploy command..."
+            eval "$POST_CMD"
+          fi
+
+          echo "==> Deployed successfully to $DEPLOY_DIR:"
+          cat "$DEPLOY_DIR/BUILD_INFO.txt"
+          ls -lh "$DEPLOY_DIR/vampire_noir_rpg" "$DEPLOY_DIR/web/pkg/vampire_noir_rpg_bg.wasm"
+          EOF

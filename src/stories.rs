@@ -61,9 +61,18 @@ impl StoryEntry {
     pub fn load_case_data(&self) -> CaseData {
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let exe_fallback = std::env::current_exe()
+                .ok()
+                .and_then(|exe| exe.canonicalize().ok().or(Some(exe)))
+                .and_then(|exe| exe.parent().map(|dir| dir.join(self.case_rel_path)));
             let manifest_fallback = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), self.case_rel_path);
-            for path in [self.case_rel_path, manifest_fallback.as_str()] {
-                if let Ok(raw) = std::fs::read_to_string(path) {
+            let mut candidates = vec![std::path::PathBuf::from(self.case_rel_path)];
+            if let Some(p) = exe_fallback {
+                candidates.push(p);
+            }
+            candidates.push(std::path::PathBuf::from(manifest_fallback));
+            for path in candidates {
+                if let Ok(raw) = std::fs::read_to_string(&path) {
                     if let Ok(parsed) = ron::from_str::<CaseData>(&raw) {
                         return parsed;
                     }
@@ -77,10 +86,19 @@ impl StoryEntry {
     pub fn load_scene_catalog(&self) -> SceneCatalog {
         #[cfg(not(target_arch = "wasm32"))]
         {
+            let exe_fallback = std::env::current_exe()
+                .ok()
+                .and_then(|exe| exe.canonicalize().ok().or(Some(exe)))
+                .and_then(|exe| exe.parent().map(|dir| dir.join(self.scenes_rel_path)));
             let manifest_fallback =
                 format!("{}/{}", env!("CARGO_MANIFEST_DIR"), self.scenes_rel_path);
-            for path in [self.scenes_rel_path, manifest_fallback.as_str()] {
-                if let Ok(raw) = std::fs::read_to_string(path) {
+            let mut candidates = vec![std::path::PathBuf::from(self.scenes_rel_path)];
+            if let Some(p) = exe_fallback {
+                candidates.push(p);
+            }
+            candidates.push(std::path::PathBuf::from(manifest_fallback));
+            for path in candidates {
+                if let Ok(raw) = std::fs::read_to_string(&path) {
                     if let Ok(parsed) = ron::from_str::<SceneCatalog>(&raw) {
                         return parsed;
                     }

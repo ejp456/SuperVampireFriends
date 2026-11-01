@@ -1,5 +1,5 @@
 .git
-.github
+.githooks
 .gitignore
 /target/
 /wasm-bindgen-*/

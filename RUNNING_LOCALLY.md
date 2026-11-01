@@ -125,3 +125,16 @@ cargo test
 - **`wasm-bindgen` version mismatch error**: Ensure `wasm-bindgen --version` reports `0.2.130` (`cargo install wasm-bindgen-cli --version 0.2.130 --force`).
 - **Port `8080` already in use**: Pass another port to the web server, e.g. `cargo run --release --bin web_server -- 8081`, then open `http://127.0.0.1:8081`.
 - **LAN Co-op can't connect on Windows**: Allow `vampire_noir_rpg.exe` (TCP `7878`) or `web_server.exe` (TCP `8080`) through Windows Defender Firewall for Private networks, or connect over [Tailscale](https://tailscale.com/).
+
+---
+
+## 8. Automated Google Cloud Post-Submit Deploy (`streaming-friends-server`)
+
+Enable the repository's `.githooks/post-commit` and `.githooks/pre-push` hooks on any clone so committing or pushing on `main` automatically compiles the WebAssembly bundle, deploys atomically to `/opt/crimson-ledger` on GCE, restarts `crimson-ledger.service`, and verifies live HTTP + SHA-256 + WebSocket health:
+
+```bash
+./scripts/install_hooks.sh
+```
+
+- **Manual deploy & live verification**: `./scripts/deploy_and_verify.sh` (pass `--force` to redeploy even if the current commit SHA is already live)
+- **Skip deploy for a single commit/push**: `SKIP_DEPLOY=1 git commit -m "..."` or `SKIP_DEPLOY=1 git push`

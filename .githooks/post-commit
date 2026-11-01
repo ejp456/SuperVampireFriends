@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# Post-submit (post-commit) hook: automatically builds, deploys, and verifies
+# SuperVampireFriends on Google Cloud (streaming-friends-server) when committing on main.
+set -e
+
+BRANCH="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+if [ "$BRANCH" != "main" ] && [ "${FORCE_DEPLOY:-0}" != "1" ]; then
+  exit 0
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+exec "$REPO_ROOT/scripts/deploy_and_verify.sh"

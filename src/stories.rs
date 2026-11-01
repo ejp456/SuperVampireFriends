@@ -480,6 +480,23 @@ mod tests {
                 cy.roll_bonus > 0,
                 "CypherDef '{cid}' in story '{story_label}' must raise dice roll success with roll_bonus > 0"
             );
+            let pairs = cy.example_pairs();
+            assert!(
+                !pairs.is_empty(),
+                "CypherDef '{cid}' in story '{story_label}' must provide Input -> Output examples"
+            );
+            for (plain, encoded) in &pairs {
+                assert_eq!(
+                    encoded,
+                    &cy.kind.encode(plain),
+                    "CypherDef '{cid}' example '{plain}' must match cy.kind.encode"
+                );
+            }
+            let alpha_cov = cy.example_alphabet_count();
+            assert!(
+                (20..=22).contains(&alpha_cov),
+                "CypherDef '{cid}' in story '{story_label}' examples should cover ~80% of the alphabet (got {alpha_cov}/26)"
+            );
         }
 
         for (nid, node) in &lib.nodes {

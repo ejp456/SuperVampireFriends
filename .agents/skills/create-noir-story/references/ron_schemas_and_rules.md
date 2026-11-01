@@ -161,15 +161,17 @@ CaseData(
     ],
     cyphers: [
         // Supported CypherKind variants: Caesar(shift: 1..=25) | A1Z26 | Atbash
-        // Engine auto-encrypts `solution`; solving grants `grants_clue` AND adds `roll_bonus` (+2 default) to ALL 2d6 skill checks!
+        // Engine auto-encrypts `solution` AND runs `sample_inputs` (or built-in ~80%-alphabet noir samples if omitted)
+        // through `kind.encode(...)` as Input -> Output puzzle examples; `hint` is gated behind `[?] Show Hint`!
         CypherDef(
             id: "cypher_bellfounder_slip",
             title: "Bellfounder's Coded Slip",
             kind: Caesar(shift: 3),
             solution: "BELL ROPE",
+            sample_inputs: ["DARK CLUB", "NIGHT FOG", "WARM PULSE", "VELVET ASH"], // Optional (~21/26 letters = 81% alphabet)
             flavor: "Pinned beside the ledger is an ink-stained slip written in shifted letters.",
-            hint: "Margin note: 'Every letter stepped +3 forward (Cipher D -> Plain A).'",
-            solved_text: "Decoded 'BELL ROPE' — unlocking a key clue and +2 to all 2d6 skill checks!",
+            hint: "Margin note: 'Every letter stepped +3 forward (Plain A -> Cipher D).'",
+            solved_text: "Decoded 'BELL ROPE' -- unlocking a key clue and +2 to all 2d6 skill checks!",
             grants_clue: "clue_decoded_slip",
             roll_bonus: 2,
         ),

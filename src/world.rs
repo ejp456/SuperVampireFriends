@@ -2003,8 +2003,8 @@ fn sync_scene_cypher_badges(
     }
     for (badge, mut txt, mut col) in &mut badge_q {
         if ledger.is_cypher_solved(&badge.cypher_id) {
-            if txt.0 != "[✓ DECODED]" {
-                txt.0 = "[✓ DECODED]".to_string();
+            if txt.0 != "[DECODED]" {
+                txt.0 = "[DECODED]".to_string();
             }
             col.0 = Color::srgb(0.46, 0.92, 0.62);
         } else {

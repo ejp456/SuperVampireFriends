@@ -224,6 +224,11 @@ mod tests {
             .send_event(cypher::OpenCypherEvent("cypher_vance_valise".to_string()));
         app.update();
         assert!(app.world().resource::<cypher::ActiveCypherModal>().open);
+        assert_eq!(
+            app.world().resource::<cypher::ActiveCypherModal>().hint_stage,
+            0,
+            "Margin note hint must start gated/hidden (hint_stage == 0) until player clicks Hint"
+        );
 
         app.world_mut()
             .resource_mut::<cypher::ActiveCypherModal>()

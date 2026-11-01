@@ -15,9 +15,7 @@ use bevy::{
 };
 
 use crate::{
-    cypher::{
-        format_caesar_wheel_lines, ActiveCypherModal, CypherKind, SubmitCypherGuessEvent,
-    },
+    cypher::{ActiveCypherModal, SubmitCypherGuessEvent},
     narrative::{CaseLibrary, ClueLedger, NarrativeState, SelectChoiceEvent},
     net::{DisconnectNetEvent, HostGameEvent, JoinGameEvent, NetRole, NetSession},
     senses::{BloodSight, SuspectHeartbeat},
@@ -201,9 +199,7 @@ struct CypherModalContent;
 #[derive(Component, Clone, Copy)]
 enum CypherBtnAction {
     Close,
-    ShiftLeft,
-    ShiftRight,
-    ToggleTip,
+    ToggleHint,
     TypeChar(char),
     Space,
     Backspace,
@@ -1371,20 +1367,11 @@ fn handle_hud_shortcuts_and_coop_typing(
                             cm.revision += 1;
                         }
                     }
-                    Key::ArrowLeft => {
-                        cm.dial_shift = (cm.dial_shift + 25) % 26;
-                        cm.revision += 1;
-                    }
-                    Key::ArrowRight => {
-                        cm.dial_shift = (cm.dial_shift + 1) % 26;
-                        cm.revision += 1;
-                    }
                     Key::Character(s) => {
                         if !ctrl {
                             for ch in s.chars() {
                                 if ch == '?' {
-                                    cm.show_extra_tip = !cm.show_extra_tip;
-                                    cm.revision += 1;
+                                    cm.cycle_hint(true);
                                 } else if (ch.is_ascii_alphanumeric() || ch == ' ')
                                     && cm.typed_input.len() < 36
                                 {
@@ -1939,7 +1926,7 @@ fn update_minimal_hud(
             String::new()
         };
         let cypher_tag = if sheet.cypher_bonus > 0 {
-            format!("  •  CYPHER +{}", sheet.cypher_bonus)
+            format!("  |  CYPHER +{}", sheet.cypher_bonus)
         } else {
             String::new()
         };
@@ -1978,7 +1965,7 @@ fn update_minimal_hud(
                 String::new()
             } else {
                 format!(
-                    "  •  Cyphers ({}/{})",
+                    "  |  Cyphers ({}/{})",
                     ledger.solved_cyphers.len(),
                     library.cypher_order.len()
                 )
@@ -2030,6 +2017,7 @@ fn handle_cypher_modal_buttons(
         (&Interaction, &CypherBtnAction, &mut BackgroundColor),
         Changed<Interaction>,
     >,
+    library: Res<CaseLibrary>,
     mut cypher_modal: Option<ResMut<ActiveCypherModal>>,
     mut submit_writer: EventWriter<SubmitCypherGuessEvent>,
 ) {
@@ -2040,6 +2028,11 @@ fn handle_cypher_modal_buttons(
         return;
     }
 
+    let has_extra_tip = library
+        .cyphers
+        .get(&cm.cypher_id)
+        .is_some_and(|d| !d.detective_tip().is_empty());
+
     for (inter, action, mut bg) in &mut interactions {
         match *inter {
             Interaction::Pressed => {
@@ -2048,17 +2041,8 @@ fn handle_cypher_modal_buttons(
                     CypherBtnAction::Close => {
                         cm.close();
                     }
-                    CypherBtnAction::ShiftLeft => {
-                        cm.dial_shift = (cm.dial_shift + 25) % 26;
-                        cm.revision += 1;
-                    }
-                    CypherBtnAction::ShiftRight => {
-                        cm.dial_shift = (cm.dial_shift + 1) % 26;
-                        cm.revision += 1;
-                    }
-                    CypherBtnAction::ToggleTip => {
-                        cm.show_extra_tip = !cm.show_extra_tip;
-                        cm.revision += 1;
+                    CypherBtnAction::ToggleHint => {
+                        cm.cycle_hint(has_extra_tip);
                     }
                     CypherBtnAction::TypeChar(ch) => {
                         if cm.typed_input.len() < 36 {
@@ -2092,6 +2076,7 @@ fn handle_cypher_modal_buttons(
                 bg.0 = match action {
                     CypherBtnAction::Submit => Color::srgb(0.16, 0.26, 0.18),
                     CypherBtnAction::Close => Color::srgb(0.20, 0.14, 0.16),
+                    CypherBtnAction::ToggleHint => Color::srgb(0.18, 0.16, 0.24),
                     _ => Color::srgb(0.14, 0.14, 0.19),
                 };
             }
@@ -2149,6 +2134,22 @@ fn sync_cypher_modal_ui(
     let cipher_txt = def.ciphertext();
     let pattern_hint = def.word_pattern_hint();
     let extra_tip = def.detective_tip();
+    let examples = def.example_pairs();
+    let alpha_count = def.example_alphabet_count();
+    let alpha_pct = ((alpha_count as f32 / 26.0) * 100.0).round() as usize;
+
+    let subtitle_prefix = if cm.hint_stage > 0 || already_solved {
+        def.kind.badge_label()
+    } else {
+        "ENCRYPTED FIELD NOTE"
+    };
+
+    let hint_btn_label = match cm.hint_stage {
+        0 => "[?] Show Hint",
+        1 if !extra_tip.is_empty() => "[?] Extra Tip",
+        1 => "[?] Hide Hint",
+        _ => "[?] Hide Hints",
+    };
 
     commands.entity(content_entity).with_children(|col| {
         // 1. Header Bar
@@ -2167,7 +2168,7 @@ fn sync_cypher_modal_ui(
             })
             .with_children(|titles| {
                 titles.spawn((
-                    Text::new(format!("🔐 {}", def.title.to_uppercase())),
+                    Text::new(format!("[CYPHER] {}", def.title.to_uppercase())),
                     TextFont {
                         font_size: 15.0,
                         ..default()
@@ -2176,9 +2177,8 @@ fn sync_cypher_modal_ui(
                 ));
                 titles.spawn((
                     Text::new(format!(
-                        "{}   •   REWARD: +STRONG CLUE & +{} ALL DICE ROLLS",
-                        def.kind.badge_label(),
-                        def.roll_bonus
+                        "{}   |   REWARD: +STRONG CLUE & +{} ALL DICE ROLLS",
+                        subtitle_prefix, def.roll_bonus
                     )),
                     TextFont {
                         font_size: 11.2,
@@ -2196,10 +2196,10 @@ fn sync_cypher_modal_ui(
             .with_children(|btns| {
                 spawn_cypher_btn(
                     btns,
-                    "[?] Forensic Tip",
-                    CypherBtnAction::ToggleTip,
-                    (0.16, 0.16, 0.24),
-                    (0.54, 0.62, 0.86),
+                    hint_btn_label,
+                    CypherBtnAction::ToggleHint,
+                    (0.18, 0.16, 0.24),
+                    (0.76, 0.68, 0.40),
                 );
                 spawn_cypher_btn(
                     btns,
@@ -2211,7 +2211,7 @@ fn sync_cypher_modal_ui(
             });
         });
 
-        // 2. Scene Context & Margin Hint
+        // 2. Scene Context & Gated Margin Hint
         col.spawn((
             Text::new(def.flavor.clone()),
             TextFont {
@@ -2220,23 +2220,34 @@ fn sync_cypher_modal_ui(
             },
             TextColor(Color::srgb(0.84, 0.83, 0.88)),
         ));
-        col.spawn((
-            Text::new(format!("Margin Note: {}", def.hint)),
-            TextFont {
-                font_size: 12.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.96, 0.78, 0.44)),
-        ));
-        if cm.show_extra_tip && !extra_tip.is_empty() {
+        if cm.hint_stage == 0 {
             col.spawn((
-                Text::new(extra_tip),
+                Text::new("Margin note hidden -- click [?] Show Hint (or press ?) if you want a clue to the rule."),
                 TextFont {
-                    font_size: 11.8,
+                    font_size: 11.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.58, 0.86, 0.96)),
+                TextColor(Color::srgb(0.58, 0.60, 0.68)),
             ));
+        } else {
+            col.spawn((
+                Text::new(format!("Margin Note: {}", def.hint)),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.96, 0.78, 0.44)),
+            ));
+            if cm.hint_stage >= 2 && !extra_tip.is_empty() {
+                col.spawn((
+                    Text::new(extra_tip),
+                    TextFont {
+                        font_size: 11.8,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.58, 0.86, 0.96)),
+                ));
+            }
         }
 
         // 3. Encrypted Ciphertext Display Box
@@ -2271,116 +2282,75 @@ fn sync_cypher_modal_ui(
             ));
         });
 
-        // 4. Interactive Key Aid (Caesar Wheel / A1Z26 / Atbash)
+        // 4. Known Input -> Output Cypher Samples (~80% Alphabet Coverage)
         col.spawn((
             Node {
                 width: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
                 padding: UiRect::axes(Val::Px(10.0), Val::Px(7.0)),
-                row_gap: Val::Px(5.0),
+                row_gap: Val::Px(4.0),
                 border: UiRect::all(Val::Px(1.0)),
                 ..default()
             },
             BackgroundColor(Color::srgb(0.08, 0.08, 0.12)),
             BorderColor(Color::srgb(0.34, 0.38, 0.50)),
         ))
-        .with_children(|kbox| match def.kind {
-            CypherKind::Caesar { .. } => {
+        .with_children(|kbox| {
+            kbox.spawn((
+                Text::new(format!(
+                    "CYPHER SAMPLES -- Input -> Output run on this cypher ({alpha_count}/26 letters = {alpha_pct}%):"
+                )),
+                TextFont {
+                    font_size: 11.2,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.78, 0.86, 0.98)),
+            ));
+
+            for (plain, encoded) in &examples {
                 kbox.spawn(Node {
                     width: Val::Percent(100.0),
-                    justify_content: JustifyContent::SpaceBetween,
+                    flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
                     column_gap: Val::Px(8.0),
                     ..default()
                 })
-                .with_children(|drow| {
-                    spawn_cypher_btn(
-                        drow,
-                        "◄ Dial -1",
-                        CypherBtnAction::ShiftLeft,
-                        (0.14, 0.16, 0.22),
-                        (0.48, 0.58, 0.80),
-                    );
-                    drow.spawn((
-                        Text::new(format!(
-                            "CAESAR KEY WHEEL — Shift Offset: +{}  (◄/► or Arrow Keys)",
-                            cm.dial_shift
-                        )),
-                        TextFont {
-                            font_size: 11.5,
+                .with_children(|erow| {
+                    erow.spawn((
+                        Node {
+                            width: Val::Px(172.0),
+                            flex_shrink: 0.0,
                             ..default()
                         },
-                        TextColor(Color::srgb(0.76, 0.86, 0.98)),
+                        Text::new(format!("IN : \"{plain}\"")),
+                        TextFont {
+                            font_size: 11.6,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.64, 0.92, 0.78)),
                     ));
-                    spawn_cypher_btn(
-                        drow,
-                        "Dial +1 ►",
-                        CypherBtnAction::ShiftRight,
-                        (0.14, 0.16, 0.22),
-                        (0.48, 0.58, 0.80),
-                    );
+                    erow.spawn((
+                        Node {
+                            width: Val::Px(30.0),
+                            flex_shrink: 0.0,
+                            ..default()
+                        },
+                        Text::new("-->"),
+                        TextFont {
+                            font_size: 11.4,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.68, 0.68, 0.74)),
+                    ));
+                    erow.spawn((
+                        Text::new(format!("OUT: \"{encoded}\"")),
+                        TextFont {
+                            font_size: 11.6,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.98, 0.84, 0.46)),
+                    ));
                 });
-                let (c_line, p_line) = format_caesar_wheel_lines(cm.dial_shift);
-                kbox.spawn((
-                    Text::new(c_line),
-                    TextFont {
-                        font_size: 11.4,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.96, 0.82, 0.46)),
-                ));
-                kbox.spawn((
-                    Text::new(p_line),
-                    TextFont {
-                        font_size: 11.4,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.58, 0.94, 0.72)),
-                ));
-            }
-            CypherKind::A1Z26 => {
-                kbox.spawn((
-                    Text::new("TELEGRAPH NUMBER CODE KEY (1 = A ... 26 = Z,  '/' separates words):"),
-                    TextFont {
-                        font_size: 11.2,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.76, 0.86, 0.98)),
-                ));
-                kbox.spawn((
-                    Text::new("A=1  B=2  C=3  D=4  E=5  F=6  G=7  H=8  I=9  J=10  K=11  L=12  M=13"),
-                    TextFont {
-                        font_size: 11.4,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.88, 0.90, 0.94)),
-                ));
-                kbox.spawn((
-                    Text::new("N=14 O=15 P=16 Q=17 R=18 S=19 T=20 U=21 V=22 W=23 X=24 Y=25 Z=26"),
-                    TextFont {
-                        font_size: 11.4,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.88, 0.90, 0.94)),
-                ));
-            }
-            CypherKind::Atbash => {
-                kbox.spawn((
-                    Text::new("ALCHEMICAL MIRROR KEY (Each letter swaps with its opposite):"),
-                    TextFont {
-                        font_size: 11.2,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.84, 0.76, 0.98)),
-                ));
-                kbox.spawn((
-                    Text::new("A↔Z  B↔Y  C↔X  D↔W  E↔V  F↔U  G↔T  H↔S  I↔R  J↔Q  K↔P  L↔O  M↔N"),
-                    TextFont {
-                        font_size: 11.6,
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.90, 0.88, 0.96)),
-                ));
             }
         });
 
@@ -2481,7 +2451,7 @@ fn sync_cypher_modal_ui(
                     );
                     spawn_cypher_btn(
                         left_btns,
-                        "[⌫ Back]",
+                        "[Bksp]",
                         CypherBtnAction::Backspace,
                         (0.14, 0.14, 0.19),
                         (0.38, 0.42, 0.54),
@@ -2497,7 +2467,7 @@ fn sync_cypher_modal_ui(
 
                 spawn_cypher_btn(
                     arow,
-                    "[Enter] Crack Cypher →",
+                    "[Enter] Crack Cypher ->",
                     CypherBtnAction::Submit,
                     (0.16, 0.28, 0.18),
                     (0.48, 0.88, 0.62),
@@ -2980,7 +2950,7 @@ fn sync_ledger_modal(
             .with_children(|b| {
                 b.spawn((
                     Text::new(format!(
-                        "★ DECODED CYPHER INSIGHT ACTIVE: +{} Bonus to All 2d6 Skill Checks ({}/{} Cyphers Cracked)",
+                        "[*] DECODED CYPHER INSIGHT ACTIVE: +{} Bonus to All 2d6 Skill Checks ({}/{} Cyphers Cracked)",
                         sheet.cypher_bonus,
                         ledger.solved_cyphers.len(),
                         library.cypher_order.len().max(ledger.solved_cyphers.len())
